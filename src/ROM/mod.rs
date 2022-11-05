@@ -1,6 +1,6 @@
 use log::debug;
 
-use crate::const_v::{NES_TAG, PRG_ROM_PAGE_SIZE, CHR_ROM_PAGE_SIZE};
+use crate::CONST::{NES_TAG, PRG_ROM_PAGE_SIZE, CHR_ROM_PAGE_SIZE};
 
 use self::mapper0::Mapper0;
 

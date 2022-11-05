@@ -4,9 +4,9 @@ use core::time;
 use std::thread;
 
 use crate::{
-    const_v::STACK_BASE,
     memory::CpuMemory,
     register::{Register, RegisterWork},
+    CONST::STACK_BASE,
     ROM::ROM,
 };
 
@@ -102,17 +102,6 @@ impl CPU {
 
         let op = operation(op_code);
         self.exec(op);
-        print!("         ");
-        print!(
-            "A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
-            self.register_a.data(),
-            self.register_x.data(),
-            self.register_y.data(),
-            self.register_p.data(),
-            self.register_sp.data(),
-            self.now_cycles
-        );
-        print!("\n");
     }
 }
 
@@ -142,6 +131,17 @@ impl CPU {
         if let Some(v) = op_value {
             print!(" = {}", v);
         }
+        print!("         ");
+        print!(
+            "A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
+            self.register_a.data(),
+            self.register_x.data(),
+            self.register_y.data(),
+            self.register_p.data(),
+            self.register_sp.data(),
+            self.now_cycles
+        );
+        print!("\n");
     }
 }
 
