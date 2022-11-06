@@ -1,13 +1,13 @@
 use log::debug;
 
-use crate::CONST::{NES_TAG, PRG_ROM_PAGE_SIZE, CHR_ROM_PAGE_SIZE};
+use crate::CONST::{CHR_ROM_PAGE_SIZE, NES_TAG, PRG_ROM_PAGE_SIZE};
 
 use self::mapper0::Mapper0;
 
 pub mod mapper0;
 
 pub trait Mapper {
-    fn read(&self, rom: &ROM, address: u16) -> u8;
+    fn read(&self, rom: &ROM, address: &mut u16) -> u8;
     fn write(&mut self, rom: &mut Vec<u8>, address: u16, value: u8);
 }
 
@@ -70,7 +70,7 @@ impl ROM {
         }
     }
 
-    pub fn read(&self, address: u16) -> u8 {
+    pub fn read(&self, address: &mut u16) -> u8 {
         self.mapper.read(self, address)
     }
 

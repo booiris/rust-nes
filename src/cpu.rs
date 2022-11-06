@@ -6,13 +6,11 @@ use std::thread;
 use crate::{
     memory::CpuMemory,
     register::{Register, RegisterWork},
-    CONST::STACK_BASE,
     ROM::ROM,
 };
 
 #[derive(Debug)]
 enum InstructionTypes {
-    INV,
     BRK,
     JMP,
     LDX,
@@ -97,8 +95,7 @@ impl CPU {
 
     fn step(&mut self) {
         print!("{:04X}  ", self.program_counter.data());
-        let op_code = self.mem.read_byte(self.program_counter.data());
-        self.program_counter += 1;
+        let op_code = self.mem.read_byte(self.program_counter.mut_data());
 
         let op = operation(op_code);
         self.exec(op);
@@ -114,7 +111,6 @@ impl CPU {
             InstructionTypes::LDX => self.ldx(op),
             InstructionTypes::STX => self.stx(op),
             InstructionTypes::JSR => self.jsr(op),
-            _ => panic!("{:?} Operation not implement!", op.instruction_type),
         }
     }
 
@@ -151,7 +147,7 @@ impl CPU {
     fn jmp(&mut self, op: Operation) {
         match op.addressing_mode {
             AddressingModes::Absolute => {
-                let address = self.mem.read_word(self.program_counter.data());
+                let address = self.mem.read_word(self.program_counter.mut_data());
                 self.program_counter.set_data(address);
                 self.debug(op, format!("{:04X}", address), None);
             }
@@ -164,8 +160,7 @@ impl CPU {
     fn ldx(&mut self, op: Operation) {
         match op.addressing_mode {
             AddressingModes::Immediate => {
-                let data = self.mem.read_byte(self.program_counter.data());
-                self.program_counter += 1;
+                let data = self.mem.read_byte(self.program_counter.mut_data());
                 self.register_x.set_data(data);
                 self.debug(op, format!("{:02X}", data), None);
             }
@@ -178,8 +173,7 @@ impl CPU {
     fn stx(&mut self, op: Operation) {
         match op.addressing_mode {
             AddressingModes::ZeroPage => {
-                let address = self.mem.read_byte(self.program_counter.data());
-                self.program_counter += 1;
+                let address = self.mem.read_byte(self.program_counter.mut_data());
                 self.mem.write_byte(address as u16, self.register_x.data());
                 self.debug(
                     op,
@@ -196,13 +190,8 @@ impl CPU {
     fn jsr(&mut self, op: Operation) {
         match op.addressing_mode {
             AddressingModes::Absolute => {
-                let address = self.mem.read_word(self.program_counter.data());
-                self.program_counter += 2;
-                self.mem.write_word(
-                    STACK_BASE + self.register_sp.data() as u16,
-                    self.program_counter.data(),
-                );
-                self.register_sp -= 2;
+                let address = self.mem.read_word(self.program_counter.mut_data());
+                self.register_sp.stack_push_word(&mut self.mem, self.program_counter.data());
                 self.program_counter.set_data(address);
                 self.debug(op, format!("{:02X}", address), None);
             }

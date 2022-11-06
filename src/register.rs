@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, SubAssign};
 
+use crate::{memory::CpuMemory, CONST::STACK_BASE};
+
 #[allow(dead_code)]
 #[repr(u8)]
 enum Flags {
@@ -18,14 +20,6 @@ pub struct Register<T: Add> {
     data: T,
 }
 
-// impl Add<u8> for Register<u8> {
-//     type Output = Register<u8>;
-
-//     fn add(self, num: u8) -> Register<u8> {
-//         <Register<u8> as RegisterWork<u8>>::new_with_data(self.data + num)
-//     }
-// }
-
 impl AddAssign<u8> for Register<u8> {
     fn add_assign(&mut self, num: u8) {
         self.data += num;
@@ -37,14 +31,6 @@ impl SubAssign<u8> for Register<u8> {
         self.data -= rhs;
     }
 }
-
-// impl Add<u16> for Register<u16> {
-//     type Output = Register<u16>;
-
-//     fn add(self, num: u16) -> Register<u16> {
-//         <Register<u16> as RegisterWork<u16>>::new_with_data(self.data + num)
-//     }
-// }
 
 impl AddAssign<u16> for Register<u16> {
     fn add_assign(&mut self, num: u16) {
@@ -59,6 +45,7 @@ pub trait RegisterWork<T: Add> {
     fn new() -> Register<T>;
 
     fn data(&self) -> T;
+    fn mut_data(&mut self) -> &mut T;
     fn set_data(&mut self, data: T);
 
     fn new_with_data(data: T) -> Register<T> {
@@ -78,8 +65,27 @@ impl RegisterWork<u8> for Register<u8> {
         self.data
     }
 
+    fn mut_data(&mut self) -> &mut u8 {
+        &mut self.data
+    }
+
     fn set_data(&mut self, data: u8) {
         self.data = data;
+    }
+}
+
+impl Register<u8> {
+    pub fn get_stack_addr(&self) -> u16 {
+        STACK_BASE + self.data as u16
+    }
+    pub fn stack_push_byte(&mut self, mem: &mut CpuMemory, data: u8) {
+        mem.write_byte(self.get_stack_addr(), data);
+        self.data -= 1;
+    }
+    pub fn stack_push_word(&mut self, mem: &mut CpuMemory, data: u16) {
+        self.data -= 1;
+        mem.write_word(self.get_stack_addr(), data);
+        self.data -= 1;
     }
 }
 
@@ -94,6 +100,11 @@ impl RegisterWork<u16> for Register<u16> {
     fn data(&self) -> u16 {
         self.data
     }
+
+    fn mut_data(&mut self) -> &mut u16 {
+        &mut self.data
+    }
+
     fn set_data(&mut self, data: u16) {
         self.data = data;
     }

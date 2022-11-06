@@ -21,7 +21,7 @@ impl CpuMemory {
         } else if address < 0x6000 {
             todo!()
         } else {
-            self.rom.write(address, data)
+            self.rom.write(address, data);
         }
     }
 
@@ -30,17 +30,22 @@ impl CpuMemory {
         self.write_byte(address + 1, ((data >> 8) & 0xFF) as u8)
     }
 
-    pub fn read_byte(&self, address: u16) -> u8 {
-        if address < 0x2000 {
-            self.ram[(address & 0x07FF) as usize]
-        } else if address < 0x6000 {
+    pub fn read_byte(&self, address: &mut u16) -> u8 {
+        let res;
+        if *address < 0x2000 {
+            res = self.ram[(*address & 0x07FF) as usize];
+        } else if *address < 0x6000 {
             todo!()
         } else {
-            self.rom.read(address)
+            res = self.rom.read(address);
         }
+        *address += 1;
+        res
     }
 
-    pub fn read_word(&self, address: u16) -> u16 {
-        (self.read_byte(address + 1) as u16) << 8 | self.read_byte(address) as u16
+    pub fn read_word(&self, address: &mut u16) -> u16 {
+        let low = self.read_byte(address) as u16;
+        let high = (self.read_byte(address) as u16) << 8;
+        high | low
     }
 }
