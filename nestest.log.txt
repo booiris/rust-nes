@@ -30,7 +30,7 @@ C769  A9 40     LDA #$40                        A:40 X:00 Y:00 P:24 SP:FB PPU:  
 C76B  D0 04     BNE $C771                       A:40 X:00 Y:00 P:24 SP:FB PPU:  0,237 CYC:79
 C771  EA        NOP                             A:40 X:00 Y:00 P:24 SP:FB PPU:  0,246 CYC:82
 C772  A9 00     LDA #$00                        A:40 X:00 Y:00 P:24 SP:FB PPU:  0,252 CYC:84
-C774  D0 03     BNE $C779                       A:00 X:00 Y:00 P:26 SP:FB PPU:  0,258 CYC:86
+C774  D0 03     BNE $C779                       A:00 X:00 Y:00 P:26 SP:FB PPU:  0,258 CYC:86 ///?????????????
 C776  4C 7D C7  JMP $C77D                       A:00 X:00 Y:00 P:26 SP:FB PPU:  0,264 CYC:88
 C77D  EA        NOP                             A:00 X:00 Y:00 P:26 SP:FB PPU:  0,273 CYC:91
 C77E  A9 FF     LDA #$FF                        A:00 X:00 Y:00 P:26 SP:FB PPU:  0,279 CYC:93

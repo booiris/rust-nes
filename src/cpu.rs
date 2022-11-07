@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
-use core::time;
-use std::thread;
+// use core::time;
+// use std::thread;
 
 use crate::{
     memory::CpuMemory,
-    register::{Register, RegisterWork},
+    register::{Flags, Register, RegisterWork},
     ROM::ROM,
 };
 
@@ -16,6 +16,16 @@ enum InstructionTypes {
     LDX,
     STX,
     JSR,
+    NOP,
+    SEC,
+    BCS,
+    CLC,
+    BCC,
+    LDA,
+    BEQ,
+    BNE,
+    STA,
+    BIT,
 }
 
 #[derive(Debug)]
@@ -33,6 +43,7 @@ enum AddressingModes {
     Indirect,
     IndexedIndirect,
     IndirectIndexed,
+    Empty,
 }
 
 struct Operation {
@@ -63,10 +74,28 @@ impl CPU {
             register_x: Register::<u8>::new(),
             register_y: Register::<u8>::new(),
             register_sp: Register::<u8>::new_with_data(0xfd),
-            register_p: Register::<u8>::new(),
+            register_p: Register::<u8>::new_with_data(0x24),
             mem: CpuMemory::new(rom),
             defer_cycles: 0,
             now_cycles: 0,
+        }
+    }
+}
+
+impl CPU {
+    fn get_data(&mut self, op: &Operation) -> u8 {
+        match op.addressing_mode {
+            AddressingModes::Immediate => self.mem.loadb(self.program_counter.mut_data()),
+            AddressingModes::Relative => self.mem.loadb(self.program_counter.mut_data()),
+            _ => panic!("{:?} not invalid address mode", op.addressing_mode),
+        }
+    }
+
+    fn get_addr(&mut self, op: &Operation) -> u16 {
+        match op.addressing_mode {
+            AddressingModes::ZeroPage => self.mem.loadb(self.program_counter.mut_data()) as u16,
+            AddressingModes::Absolute => self.mem.loadw(self.program_counter.mut_data()),
+            _ => panic!("{:?} not invalid address mode", op.addressing_mode),
         }
     }
 }
@@ -78,7 +107,7 @@ impl CPU {
         self.now_cycles = 6;
 
         loop {
-            thread::sleep(time::Duration::from_millis(100));
+            // thread::sleep(time::Duration::from_millis(100));
             self.clock();
         }
     }
@@ -95,7 +124,7 @@ impl CPU {
 
     fn step(&mut self) {
         print!("{:04X}  ", self.program_counter.data());
-        let op_code = self.mem.read_byte(self.program_counter.mut_data());
+        let op_code = self.mem.loadb(self.program_counter.mut_data());
 
         let op = operation(op_code);
         self.exec(op);
@@ -111,16 +140,27 @@ impl CPU {
             InstructionTypes::LDX => self.ldx(op),
             InstructionTypes::STX => self.stx(op),
             InstructionTypes::JSR => self.jsr(op),
+            InstructionTypes::NOP => self.nop(op),
+            InstructionTypes::SEC => self.sec(op),
+            InstructionTypes::BCS => self.bcs(op),
+            InstructionTypes::CLC => self.clc(op),
+            InstructionTypes::BCC => self.bcc(op),
+            InstructionTypes::LDA => self.lda(op),
+            InstructionTypes::BEQ => self.beq(op),
+            InstructionTypes::BNE => self.bne(op),
+            InstructionTypes::STA => self.sta(op),
+            InstructionTypes::BIT => self.bit(op),
         }
     }
 
-    fn debug(&self, op: Operation, op_address: String, op_value: Option<String>) {
-        print!("{:02x} ", op.opc);
+    fn debug(&self, op: &Operation, op_address: String, op_value: Option<String>) {
+        print!("{:02X} ", op.opc);
         print!(" {:?} ", op.instruction_type);
         match op.addressing_mode {
             AddressingModes::Immediate => print!("#"),
             AddressingModes::Absolute => print!("$"),
             AddressingModes::ZeroPage => print!("$"),
+            AddressingModes::Relative => print!("$"),
             _ => print!("?"),
         }
         print!("{}", op_address);
@@ -142,63 +182,115 @@ impl CPU {
 }
 
 impl CPU {
+    fn set_zn(&mut self, val: u8) {
+        self.register_p.set_flag(Flags::Z, val == 0);
+        self.register_p.set_flag(Flags::N, (val & 0x80) != 0);
+    }
+
+    fn new_page(&self, old_addr: u16, new_addr: u16) -> bool {
+        (new_addr & 0xFF00) != (old_addr & 0xFF00)
+    }
+
+    fn jmp_by_flag(&mut self, op: &Operation, flag: Flags, on: bool) {
+        let data = self.get_data(&op);
+        if self.register_p.check_flag(flag) == on {
+            self.defer_cycles += 1;
+            let old_addr = self.program_counter.data();
+            if self.register_p.check_flag(Flags::N) {
+                self.program_counter -= data as u16;
+            } else {
+                self.program_counter += data as u16;
+            }
+            let new_addr = self.program_counter.data();
+            if self.new_page(old_addr, new_addr) {
+                self.defer_cycles += 1;
+            }
+        }
+        self.debug(op, format!("{:04X}", self.program_counter.data()), None);
+    }
+
     fn brk(&self, _op: Operation) {}
 
     fn jmp(&mut self, op: Operation) {
-        match op.addressing_mode {
-            AddressingModes::Absolute => {
-                let address = self.mem.read_word(self.program_counter.mut_data());
-                self.program_counter.set_data(address);
-                self.debug(op, format!("{:04X}", address), None);
-            }
-            _ => {
-                panic!("{:?} error AddressingModes!", op.addressing_mode)
-            }
-        }
+        let addr = self.get_addr(&op);
+        self.program_counter.set_data(addr);
+        self.debug(&op, format!("{:04X}", addr), None);
     }
 
     fn ldx(&mut self, op: Operation) {
-        match op.addressing_mode {
-            AddressingModes::Immediate => {
-                let data = self.mem.read_byte(self.program_counter.mut_data());
-                self.register_x.set_data(data);
-                self.debug(op, format!("{:02X}", data), None);
-            }
-            _ => {
-                panic!("{:?} error AddressingModes!", op.addressing_mode)
-            }
-        }
+        let data = self.get_data(&op);
+        self.register_x.set_data(data);
+        self.set_zn(data);
+        self.debug(&op, format!("{:02X}", data), None);
     }
 
     fn stx(&mut self, op: Operation) {
-        match op.addressing_mode {
-            AddressingModes::ZeroPage => {
-                let address = self.mem.read_byte(self.program_counter.mut_data());
-                self.mem.write_byte(address as u16, self.register_x.data());
-                self.debug(
-                    op,
-                    format!("{:02X}", address),
-                    Some(format!("{:02X}", self.register_x.data())),
-                );
-            }
-            _ => {
-                panic!("{:?} error AddressingModes!", op.addressing_mode)
-            }
-        }
+        let addr = self.get_addr(&op);
+        self.mem.storeb(addr, self.register_x.data());
+        self.debug(
+            &op,
+            format!("{:02X}", addr),
+            Some(format!("{:02X}", self.register_x.data())),
+        );
     }
 
     fn jsr(&mut self, op: Operation) {
-        match op.addressing_mode {
-            AddressingModes::Absolute => {
-                let address = self.mem.read_word(self.program_counter.mut_data());
-                self.register_sp.stack_push_word(&mut self.mem, self.program_counter.data());
-                self.program_counter.set_data(address);
-                self.debug(op, format!("{:02X}", address), None);
-            }
-            _ => {
-                panic!("{:?} error AddressingModes!", op.addressing_mode)
-            }
-        }
+        let addr = self.get_addr(&op);
+        self.register_sp
+            .stack_push_word(&mut self.mem, self.program_counter.data());
+        self.program_counter.set_data(addr);
+        self.debug(&op, format!("{:02X}", addr), None);
+    }
+
+    fn nop(&mut self, op: Operation) {
+        self.debug(&op, format!("{:02X}", 0x00), None);
+    }
+
+    fn sec(&mut self, op: Operation) {
+        self.register_p.set_flag(Flags::C, true);
+        self.debug(&op, format!("{:02X}", 0x00), None);
+    }
+
+    fn bcs(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::C, true);
+    }
+
+    fn clc(&mut self, op: Operation) {
+        self.register_p.set_flag(Flags::C, false);
+        self.debug(&op, format!("{:02X}", 0x00), None);
+    }
+
+    fn bcc(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::C, false);
+    }
+
+    fn lda(&mut self, op: Operation) {
+        let data = self.get_data(&op);
+        self.register_a.set_data(data);
+        self.set_zn(data);
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn beq(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::Z, true);
+    }
+
+    fn bne(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::Z, false);
+    }
+
+    fn sta(&mut self, op: Operation) {
+        let addr = self.get_addr(&op);
+        self.mem.storeb(addr, self.register_a.data());
+        self.debug(
+            &op,
+            format!("{:02X}", addr),
+            Some(format!("{:02X}", self.register_a.data())),
+        );
+    }
+
+    fn bit(&mut self, op: Operation) {
+        todo!()
     }
 }
 
@@ -210,10 +302,28 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Implicit,
             opc,
         },
+        0x18 => Operation {
+            instruction_type: InstructionTypes::CLC,
+            cycle: 2,
+            addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
         0x20 => Operation {
             instruction_type: InstructionTypes::JSR,
             cycle: 6,
             addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x24 => Operation {
+            instruction_type: InstructionTypes::BIT,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0x38 => Operation {
+            instruction_type: InstructionTypes::SEC,
+            cycle: 2,
+            addressing_mode: AddressingModes::Implicit,
             opc,
         },
         0x4c => Operation {
@@ -222,16 +332,58 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Absolute,
             opc,
         },
+        0x85 => Operation {
+            instruction_type: InstructionTypes::STA,
+            cycle: 2,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
         0x86 => Operation {
             instruction_type: InstructionTypes::STX,
             cycle: 3,
             addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
+        0x90 => Operation {
+            instruction_type: InstructionTypes::BCC,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
+            opc,
+        },
         0xa2 => Operation {
             instruction_type: InstructionTypes::LDX,
             cycle: 2,
             addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
+        0xa9 => Operation {
+            instruction_type: InstructionTypes::LDA,
+            cycle: 2,
+            addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
+        0xb0 => Operation {
+            instruction_type: InstructionTypes::BCS,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0xd0 => Operation {
+            instruction_type: InstructionTypes::BNE,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0xea => Operation {
+            instruction_type: InstructionTypes::NOP,
+            cycle: 2,
+            addressing_mode: AddressingModes::Empty,
+            opc,
+        },
+        0xf0 => Operation {
+            instruction_type: InstructionTypes::BEQ,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
             opc,
         },
         _ => panic!("{:x?} Operation Code not implement!", opc),

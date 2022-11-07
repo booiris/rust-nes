@@ -4,7 +4,7 @@ use crate::{memory::CpuMemory, CONST::STACK_BASE};
 
 #[allow(dead_code)]
 #[repr(u8)]
-enum Flags {
+pub enum Flags {
     C = 1 << 0, // Carry
     Z = 1 << 1, // Zero
     I = 1 << 2, // Disable interrupt
@@ -35,6 +35,12 @@ impl SubAssign<u8> for Register<u8> {
 impl AddAssign<u16> for Register<u16> {
     fn add_assign(&mut self, num: u16) {
         self.data += num;
+    }
+}
+
+impl SubAssign<u16> for Register<u16> {
+    fn sub_assign(&mut self, rhs: u16) {
+        self.data -= rhs;
     }
 }
 
@@ -79,13 +85,27 @@ impl Register<u8> {
         STACK_BASE + self.data as u16
     }
     pub fn stack_push_byte(&mut self, mem: &mut CpuMemory, data: u8) {
-        mem.write_byte(self.get_stack_addr(), data);
+        mem.storeb(self.get_stack_addr(), data);
         self.data -= 1;
     }
     pub fn stack_push_word(&mut self, mem: &mut CpuMemory, data: u16) {
         self.data -= 1;
-        mem.write_word(self.get_stack_addr(), data);
+        mem.storew(self.get_stack_addr(), data);
         self.data -= 1;
+    }
+}
+
+impl Register<u8> {
+    pub fn set_flag(&mut self, flag: Flags, on: bool) {
+        if on {
+            self.data |= flag as u8;
+        } else {
+            self.data &= !(flag as u8);
+        }
+    }
+
+    pub fn check_flag(&mut self, flag: Flags) -> bool {
+        self.data & flag as u8 != 0
     }
 }
 

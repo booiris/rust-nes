@@ -15,7 +15,7 @@ impl CpuMemory {
 }
 
 impl CpuMemory {
-    pub fn write_byte(&mut self, address: u16, data: u8) {
+    pub fn storeb(&mut self, address: u16, data: u8) {
         if address < 0x2000 {
             self.ram[(address & 0x07FF) as usize] = data;
         } else if address < 0x6000 {
@@ -25,12 +25,12 @@ impl CpuMemory {
         }
     }
 
-    pub fn write_word(&mut self, address: u16, data: u16) {
-        self.write_byte(address, (data & 0xFF) as u8);
-        self.write_byte(address + 1, ((data >> 8) & 0xFF) as u8)
+    pub fn storew(&mut self, address: u16, data: u16) {
+        self.storeb(address, (data & 0xFF) as u8);
+        self.storeb(address + 1, ((data >> 8) & 0xFF) as u8)
     }
 
-    pub fn read_byte(&self, address: &mut u16) -> u8 {
+    pub fn loadb(&self, address: &mut u16) -> u8 {
         let res;
         if *address < 0x2000 {
             res = self.ram[(*address & 0x07FF) as usize];
@@ -43,9 +43,9 @@ impl CpuMemory {
         res
     }
 
-    pub fn read_word(&self, address: &mut u16) -> u16 {
-        let low = self.read_byte(address) as u16;
-        let high = (self.read_byte(address) as u16) << 8;
+    pub fn loadw(&self, address: &mut u16) -> u16 {
+        let low = self.loadb(address) as u16;
+        let high = (self.loadb(address) as u16) << 8;
         high | low
     }
 }

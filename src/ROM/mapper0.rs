@@ -14,11 +14,11 @@ impl Mapper for Mapper0 {
             }
             rom.prg[address as usize]
         } else {
-            panic!("{:x?} address out of range!", address)
+            panic!("{:X?} address out of range!", address)
         }
     }
 
-    fn write(&mut self, _ram: &mut Vec<u8>, _address: u16, _value: u8) {
-        panic!("Attempt to write to Cartridge ROM space")
+    fn write(&mut self, _ram: &mut Vec<u8>, address: u16, _value: u8) {
+        panic!("{:X?} Attempt to write to Cartridge ROM space", address);
     }
 }
