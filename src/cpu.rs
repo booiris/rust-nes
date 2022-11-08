@@ -26,6 +26,10 @@ enum InstructionTypes {
     BNE,
     STA,
     BIT,
+    BVS,
+    BVC,
+    BPL,
+    RTS,
 }
 
 #[derive(Debug)]
@@ -150,6 +154,10 @@ impl CPU {
             InstructionTypes::BNE => self.bne(op),
             InstructionTypes::STA => self.sta(op),
             InstructionTypes::BIT => self.bit(op),
+            InstructionTypes::BVS => self.bvs(op),
+            InstructionTypes::BVC => self.bvc(op),
+            InstructionTypes::BPL => self.bpl(op),
+            InstructionTypes::RTS => self.rts(op),
         }
     }
 
@@ -196,7 +204,7 @@ impl CPU {
         if self.register_p.check_flag(flag) == on {
             self.defer_cycles += 1;
             let old_addr = self.program_counter.data();
-            if self.register_p.check_flag(Flags::N) {
+            if (data as i8) < 0 {
                 self.program_counter -= data as u16;
             } else {
                 self.program_counter += data as u16;
@@ -206,7 +214,11 @@ impl CPU {
                 self.defer_cycles += 1;
             }
         }
-        self.debug(op, format!("{:04X}", self.program_counter.data()), None);
+        self.debug(
+            op,
+            format!("{:04X}", self.program_counter.data()),
+            Some(format!("{:02X}", data)),
+        );
     }
 
     fn brk(&self, _op: Operation) {}
@@ -290,7 +302,35 @@ impl CPU {
     }
 
     fn bit(&mut self, op: Operation) {
-        todo!()
+        let mut addr = self.get_addr(&op);
+        let data = self.mem.loadb(&mut addr);
+        let temp = data & self.register_a.data();
+        if temp == 0 {
+            self.register_p.set_flag(Flags::Z, true);
+        }
+        self.register_p
+            .set_flag(Flags::N, temp & Flags::N as u8 != 0);
+        self.register_p
+            .set_flag(Flags::V, temp & Flags::V as u8 != 0);
+        self.debug(&op, format!("{:02X}", addr), Some(format!("{:02X}", data)));
+    }
+
+    fn bvs(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::V, true);
+    }
+
+    fn bvc(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::V, false);
+    }
+
+    fn bpl(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::N, false);
+    }
+
+    fn rts(&mut self, op: Operation) {
+        let addr = self.register_sp.stack_pop_word(&mut self.mem);
+        self.program_counter.set_data(addr);
+        self.debug(&op, format!("{:04X}", addr), None);
     }
 }
 
@@ -300,6 +340,12 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::BRK,
             cycle: 7,
             addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x10 => Operation {
+            instruction_type: InstructionTypes::BPL,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
             opc,
         },
         0x18 => Operation {
@@ -332,9 +378,27 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Absolute,
             opc,
         },
+        0x50 => Operation {
+            instruction_type: InstructionTypes::BVC,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0x60 => Operation {
+            instruction_type: InstructionTypes::RTS,
+            cycle: 6,
+            addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x70 => Operation {
+            instruction_type: InstructionTypes::BVS,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
+            opc,
+        },
         0x85 => Operation {
             instruction_type: InstructionTypes::STA,
-            cycle: 2,
+            cycle: 3,
             addressing_mode: AddressingModes::ZeroPage,
             opc,
         },

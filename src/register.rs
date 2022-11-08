@@ -93,6 +93,20 @@ impl Register<u8> {
         mem.storew(self.get_stack_addr(), data);
         self.data -= 1;
     }
+
+    pub fn stack_pop_byte(&mut self, mem: &mut CpuMemory) -> u8 {
+        self.data += 1;
+        let mut addr = self.get_stack_addr();
+        let data = mem.loadb(&mut addr);
+        data
+    }
+    pub fn stack_pop_word(&mut self, mem: &mut CpuMemory) -> u16 {
+        self.data += 1;
+        let mut addr = self.get_stack_addr();
+        let data = mem.loadw(&mut addr);
+        self.data += 1;
+        data
+    }
 }
 
 impl Register<u8> {

@@ -27,7 +27,7 @@
     "Cargo.lock": true,
     // "**/mod.rs": true,
     "target": true,
-    // "dist": true,
+    "dist": true,
     "**/backup": true
   },
   // "rust-analyzer.cargo.features": [
