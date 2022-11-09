@@ -30,6 +30,20 @@ enum InstructionTypes {
     BVC,
     BPL,
     RTS,
+    SEI,
+    SED,
+    PHP,
+    PLA,
+    AND,
+    CMP,
+    CLD,
+    PHA,
+    PLP,
+    BMI,
+    ORA,
+    CLV,
+    EOR,
+    ADC,
 }
 
 #[derive(Debug)]
@@ -158,6 +172,20 @@ impl CPU {
             InstructionTypes::BVC => self.bvc(op),
             InstructionTypes::BPL => self.bpl(op),
             InstructionTypes::RTS => self.rts(op),
+            InstructionTypes::SEI => self.sei(op),
+            InstructionTypes::SED => self.sed(op),
+            InstructionTypes::PHP => self.php(op),
+            InstructionTypes::PLA => self.pla(op),
+            InstructionTypes::AND => self.and(op),
+            InstructionTypes::CMP => self.cmp(op),
+            InstructionTypes::CLD => self.cld(op),
+            InstructionTypes::PHA => self.pha(op),
+            InstructionTypes::PLP => self.plp(op),
+            InstructionTypes::BMI => self.bmi(op),
+            InstructionTypes::ORA => self.ora(op),
+            InstructionTypes::CLV => self.clv(op),
+            InstructionTypes::EOR => self.eor(op),
+            InstructionTypes::ADC => self.adc(op),
         }
     }
 
@@ -305,13 +333,11 @@ impl CPU {
         let mut addr = self.get_addr(&op);
         let data = self.mem.loadb(&mut addr);
         let temp = data & self.register_a.data();
-        if temp == 0 {
-            self.register_p.set_flag(Flags::Z, true);
-        }
+        self.register_p.set_flag(Flags::Z, temp == 0);
         self.register_p
-            .set_flag(Flags::N, temp & Flags::N as u8 != 0);
+            .set_flag(Flags::N, data & Flags::N as u8 != 0);
         self.register_p
-            .set_flag(Flags::V, temp & Flags::V as u8 != 0);
+            .set_flag(Flags::V, data & Flags::V as u8 != 0);
         self.debug(&op, format!("{:02X}", addr), Some(format!("{:02X}", data)));
     }
 
@@ -332,6 +358,94 @@ impl CPU {
         self.program_counter.set_data(addr);
         self.debug(&op, format!("{:04X}", addr), None);
     }
+
+    fn sei(&mut self, op: Operation) {
+        self.register_p.set_flag(Flags::I, true);
+        self.debug(&op, format!("{:02X}", 0), None);
+    }
+
+    fn sed(&mut self, op: Operation) {
+        self.register_p.set_flag(Flags::D, true);
+        self.debug(&op, format!("{:02X}", 0), None);
+    }
+
+    fn php(&mut self, op: Operation) {
+        let data = self.register_p.data() | 0x30;
+        self.register_sp.stack_push_byte(&mut self.mem, data);
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn pla(&mut self, op: Operation) {
+        let data = self.register_sp.stack_pop_byte(&mut self.mem);
+        self.register_a.set_data(data);
+        self.set_zn(data);
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn and(&mut self, op: Operation) {
+        let data = self.get_data(&op);
+        *self.register_a.mut_data() &= data;
+        self.set_zn(self.register_a.data());
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn cmp(&mut self, op: Operation) {
+        let data = self.register_a.data() as i32 - self.get_data(&op) as i32;
+        self.register_p.set_flag(Flags::C, data >= 0);
+        self.set_zn(data as u8);
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn cld(&mut self, op: Operation) {
+        self.register_p.set_flag(Flags::D, false);
+        self.debug(&op, format!("{:02X}", 0), None);
+    }
+
+    fn pha(&mut self, op: Operation) {
+        self.register_sp
+            .stack_push_byte(&mut self.mem, self.register_a.data());
+        self.debug(&op, format!("{:02X}", self.register_a.data()), None);
+    }
+
+    fn plp(&mut self, op: Operation) {
+        let data = self.register_sp.stack_pop_byte(&mut self.mem);
+        self.register_p.set_data((data | 0x30) - 0x10);
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn bmi(&mut self, op: Operation) {
+        self.jmp_by_flag(&op, Flags::N, true);
+    }
+
+    fn ora(&mut self, op: Operation) {
+        let data = self.get_data(&op);
+        *self.register_a.mut_data() |= data;
+        self.set_zn(self.register_a.data());
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn clv(&mut self, op: Operation) {
+        self.register_p.set_flag(Flags::V, false);
+        self.debug(&op, format!("{:02X}", 0), None)
+    }
+
+    fn eor(&mut self, op: Operation) {
+        let data = self.get_data(&op);
+        *self.register_a.mut_data() ^= data;
+        self.set_zn(self.register_a.data());
+        self.debug(&op, format!("{:02X}", data), None);
+    }
+
+    fn adc(&mut self, op: Operation) {
+        // let data = self.get_data(&op);
+        // let (res, overflow1) = self.register_a.data().overflowing_add(data);
+        // let (res, overflow2) = res.overflowing_add(self.register_p.check_flag(Flags::C) as u8);
+        // self.register_p.set_flag(Flags::V, overflow1 || overflow2);
+        // self.set_zn(res);
+        // self.register_a.set_data(res);
+        // self.debug(&op, format!("{:02X}", data), None);
+        todo!()
+    }
 }
 
 fn operation(opc: u8) -> Operation {
@@ -340,6 +454,18 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::BRK,
             cycle: 7,
             addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x08 => Operation {
+            instruction_type: InstructionTypes::PHP,
+            cycle: 3,
+            addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x09 => Operation {
+            instruction_type: InstructionTypes::ORA,
+            cycle: 2,
+            addressing_mode: AddressingModes::Immediate,
             opc,
         },
         0x10 => Operation {
@@ -366,6 +492,24 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
+        0x28 => Operation {
+            instruction_type: InstructionTypes::PLP,
+            cycle: 4,
+            addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x29 => Operation {
+            instruction_type: InstructionTypes::AND,
+            cycle: 2,
+            addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
+        0x30 => Operation {
+            instruction_type: InstructionTypes::BMI,
+            cycle: 2,
+            addressing_mode: AddressingModes::Relative,
+            opc,
+        },
         0x38 => Operation {
             instruction_type: InstructionTypes::SEC,
             cycle: 2,
@@ -376,6 +520,18 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::JMP,
             cycle: 3,
             addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x48 => Operation {
+            instruction_type: InstructionTypes::PHA,
+            cycle: 3,
+            addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x49 => Operation {
+            instruction_type: InstructionTypes::EOR,
+            cycle: 2,
+            addressing_mode: AddressingModes::Immediate,
             opc,
         },
         0x50 => Operation {
@@ -390,10 +546,28 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Implicit,
             opc,
         },
+        0x68 => Operation {
+            instruction_type: InstructionTypes::PLA,
+            cycle: 4,
+            addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x69 => Operation {
+            instruction_type: InstructionTypes::ADC,
+            cycle: 2,
+            addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
         0x70 => Operation {
             instruction_type: InstructionTypes::BVS,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0x78 => Operation {
+            instruction_type: InstructionTypes::SEI,
+            cycle: 2,
+            addressing_mode: AddressingModes::Implicit,
             opc,
         },
         0x85 => Operation {
@@ -432,10 +606,28 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Relative,
             opc,
         },
+        0xb8 => Operation {
+            instruction_type: InstructionTypes::CLV,
+            cycle: 2,
+            addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0xc9 => Operation {
+            instruction_type: InstructionTypes::CMP,
+            cycle: 2,
+            addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
         0xd0 => Operation {
             instruction_type: InstructionTypes::BNE,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0xd8 => Operation {
+            instruction_type: InstructionTypes::CLD,
+            cycle: 2,
+            addressing_mode: AddressingModes::Implicit,
             opc,
         },
         0xea => Operation {
@@ -448,6 +640,12 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::BEQ,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0xf8 => Operation {
+            instruction_type: InstructionTypes::SED,
+            cycle: 2,
+            addressing_mode: AddressingModes::Implicit,
             opc,
         },
         _ => panic!("{:x?} Operation Code not implement!", opc),
