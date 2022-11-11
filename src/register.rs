@@ -107,6 +107,11 @@ impl Register<u8> {
         self.data += 1;
         data
     }
+    // pub fn peak_byte(&mut self, mem: &mut CpuMemory) -> u8 {
+    //     let mut addr = self.get_stack_addr() + 1;
+    //     let data = mem.loadb(&mut addr);
+    //     data
+    // }
 }
 
 impl Register<u8> {
