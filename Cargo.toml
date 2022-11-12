@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 yew = "0.19"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
@@ -13,6 +12,9 @@ gloo-utils = "0.1.2"
 gloo = "0.8.0"
 env_logger = "0.9.1"
 log = "0.4.17"
+lazy_static = "1.4.0"
+bitflags = "1.2.1"
+sdl2 = "0.34.0"
 
 # [profile.release]
 # opt-level = 's'
@@ -27,3 +29,6 @@ opt-level = 'z'
 # opt-level = 's'
 # link time optimization using using whole-program analysis
 lto = true
+
+[features]
+cpu-debug = []

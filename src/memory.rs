@@ -2,15 +2,20 @@ use crate::ROM::ROM;
 
 pub struct CpuMemory {
     ram: [u8; 2048],
-    rom: ROM,
+    rom: Option<ROM>,
 }
 
 impl CpuMemory {
-    pub fn new(rom: ROM) -> Self {
+    pub fn new() -> Self {
         CpuMemory {
             ram: [0; 2048],
-            rom,
+            rom: None,
         }
+    }
+
+    pub fn load_rom(&mut self, data: Vec<u8>) {
+        self.ram = [0; 2048];
+        self.rom = Some(ROM::new(data));
     }
 }
 
@@ -21,7 +26,10 @@ impl CpuMemory {
         } else if address < 0x6000 {
             todo!()
         } else {
-            self.rom.write(address, data);
+            self.rom
+                .as_mut()
+                .expect("not load rom!")
+                .write(address, data);
         }
     }
 
@@ -37,7 +45,7 @@ impl CpuMemory {
         } else if *address < 0x6000 {
             todo!()
         } else {
-            res = self.rom.read(address);
+            res = self.rom.as_ref().expect("not load rom!").read(address);
         }
         *address += 1;
         res

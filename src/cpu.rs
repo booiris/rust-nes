@@ -6,7 +6,6 @@
 use crate::{
     memory::CpuMemory,
     register::{Flags, Register, RegisterWork},
-    ROM::ROM,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -109,13 +108,13 @@ pub struct CPU {
     register_sp: Register<u8>,
     register_p: Register<u8>,
 
-    mem: CpuMemory,
+    pub mem: CpuMemory,
     defer_cycles: usize,
     now_cycles: usize,
 }
 
 impl CPU {
-    pub fn new(rom: ROM) -> Self {
+    pub fn new() -> Self {
         CPU {
             program_counter: Register::<u16>::new(),
             register_a: Register::<u8>::new(),
@@ -123,7 +122,7 @@ impl CPU {
             register_y: Register::<u8>::new(),
             register_sp: Register::<u8>::new_with_data(0xfd),
             register_p: Register::<u8>::new_with_data(0x24),
-            mem: CpuMemory::new(rom),
+            mem: CpuMemory::new(),
             defer_cycles: 0,
             now_cycles: 0,
         }
@@ -226,13 +225,20 @@ impl CPU {
 }
 
 impl CPU {
+    pub fn reset(&mut self) {
+        self.register_a.set_data(0);
+        self.register_x.set_data(0);
+        self.register_y.set_data(0);
+        self.register_sp.set_data(0xfd);
+        self.register_p.set_data(0x24);
+        self.program_counter.set_data(self.mem.loadw(&mut 0xfffc));
+    }
     pub fn run(&mut self) {
         //TODO
         self.program_counter.set_data(0xC000);
         self.now_cycles = 6;
 
         loop {
-            // thread::sleep(time::Duration::from_millis(100));
             self.clock();
         }
     }
@@ -248,7 +254,9 @@ impl CPU {
     }
 
     fn step(&mut self) {
+        #[cfg(feature = "cpu-debug")]
         print!("{:04X}  ", self.program_counter.data());
+
         let op_code = self.mem.loadb(self.program_counter.mut_data());
 
         let op = operation(op_code);
@@ -326,6 +334,7 @@ impl CPU {
         }
     }
 
+    #[cfg(feature = "cpu-debug")]
     fn debug(&self, op: &Operation, op_address: String, op_value: Option<String>) {
         print!("{:02X} ", op.opc);
         print!(" {:?} ", op.instruction_type);
@@ -352,6 +361,9 @@ impl CPU {
         );
         print!("\n");
     }
+
+    #[cfg(not(feature = "cpu-debug"))]
+    fn debug(&self, _op: &Operation, _op_address: String, _op_value: Option<String>) {}
 }
 
 impl CPU {
@@ -2290,5 +2302,17 @@ fn operation(opc: u8) -> Operation {
             opc,
         },
         _ => panic!("{:x?} Operation Code not implement!", opc),
+    }
+}
+
+impl CPU {
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+    where
+        F: FnMut(&mut CPU),
+    {
+        loop {
+            self.step();
+            callback(self);
+        }
     }
 }
