@@ -60,6 +60,12 @@ enum InstructionTypes {
     TXS,
     RTI,
     LSR,
+    ASL,
+    ROR,
+    ROL,
+    STY,
+    INC,
+    DEC,
 }
 
 #[derive(Debug)]
@@ -75,8 +81,8 @@ enum AddressingModes {
     AbsoluteX,
     AbsoluteY,
     Indirect,
-    IndexedIndirect,
-    IndirectIndexed,
+    IndirectX,
+    IndirectY,
     Empty,
 }
 
@@ -119,21 +125,66 @@ impl CPU {
 impl CPU {
     fn get_data(&mut self, op: &Operation) -> u8 {
         match op.addressing_mode {
+            AddressingModes::Accumulator => self.register_a.data(),
             AddressingModes::Immediate => self.mem.loadb(self.program_counter.mut_data()),
             AddressingModes::Relative => self.mem.loadb(self.program_counter.mut_data()),
             AddressingModes::Absolute => {
                 let mut addr = self.mem.loadw(self.program_counter.mut_data());
                 self.mem.loadb(&mut addr)
             }
-            _ => panic!("{:?} not invalid address mode", op.addressing_mode),
+            AddressingModes::ZeroPage => {
+                let mut addr = self.mem.loadb(self.program_counter.mut_data()) as u16;
+                self.mem.loadb(&mut addr)
+            }
+            AddressingModes::IndirectX => {
+                let mut addr = self.get_addr(op);
+                self.mem.loadb(&mut addr)
+            }
+            AddressingModes::IndirectY => {
+                let mut addr = self.get_addr(op);
+                self.mem.loadb(&mut addr)
+            }
+            _ => panic!(
+                "get data: {:?} not invalid address mode",
+                op.addressing_mode
+            ),
         }
     }
 
     fn get_addr(&mut self, op: &Operation) -> u16 {
         match op.addressing_mode {
+            AddressingModes::Accumulator => 0,
             AddressingModes::ZeroPage => self.mem.loadb(self.program_counter.mut_data()) as u16,
             AddressingModes::Absolute => self.mem.loadw(self.program_counter.mut_data()),
-            _ => panic!("{:?} not invalid address mode", op.addressing_mode),
+            AddressingModes::IndirectX => {
+                let mut addr1 = self
+                    .mem
+                    .loadb(self.program_counter.mut_data())
+                    .wrapping_add(self.register_x.data()) as u16;
+                let mut addr2 = (addr1 & 0xFF00) | ((addr1 + 1) & 0x00FF);
+                self.mem.loadb(&mut addr1) as u16 | (self.mem.loadb(&mut addr2) as u16) << 8
+            }
+            AddressingModes::IndirectY => {
+                let mut addr1 = self.mem.loadb(self.program_counter.mut_data()) as u16;
+                let mut addr2 = (addr1 & 0xFF00) | ((addr1 + 1) & 0x00FF);
+                let addr =
+                    self.mem.loadb(&mut addr1) as u16 | (self.mem.loadb(&mut addr2) as u16) << 8;
+                let old_addr = addr;
+                let addr = addr.wrapping_add(self.register_y.data() as u16) as u16;
+                if self.new_page(old_addr, addr) {
+                    self.defer_cycles += 1;
+                }
+                addr
+            }
+            AddressingModes::Indirect => {
+                let mut addr1 = self.mem.loadw(self.program_counter.mut_data());
+                let mut addr2 = (addr1 & 0xFF00) | ((addr1 + 1) & 0x00FF);
+                self.mem.loadb(&mut addr1) as u16 | (self.mem.loadb(&mut addr2) as u16) << 8
+            }
+            _ => panic!(
+                "get addr: {:?} not invalid address mode",
+                op.addressing_mode
+            ),
         }
     }
 }
@@ -222,6 +273,12 @@ impl CPU {
             InstructionTypes::TXS => self.txs(op),
             InstructionTypes::RTI => self.rti(op),
             InstructionTypes::LSR => self.lsr(op),
+            InstructionTypes::ASL => self.asl(op),
+            InstructionTypes::ROR => self.ror(op),
+            InstructionTypes::ROL => self.rol(op),
+            InstructionTypes::STY => self.sty(op),
+            InstructionTypes::INC => self.inc(op),
+            InstructionTypes::DEC => self.dec(op),
         }
     }
 
@@ -600,7 +657,129 @@ impl CPU {
         self.debug(&op, format!("{:04X}", addr), Some(format!("{:02X}", data)));
     }
 
-    fn lsr(&mut self, op: Operation) {}
+    fn lsr(&mut self, op: Operation) {
+        match op.addressing_mode {
+            AddressingModes::Accumulator => {
+                let data = self.get_data(&op);
+                let (data, flag) = (data >> 1, (data & 0b0000_0001) == 0b0000_0001);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.register_a.set_data(data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+            _ => {
+                let addr = self.get_addr(&op);
+                let mut temp = addr;
+                let data = self.mem.loadb(&mut temp);
+                let (data, flag) = (data >> 1, (data & 0b0000_0001) == 0b0000_0001);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.mem.storeb(addr, data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+        }
+    }
+
+    fn asl(&mut self, op: Operation) {
+        match op.addressing_mode {
+            AddressingModes::Accumulator => {
+                let data = self.get_data(&op);
+                let (data, flag) = (data << 1, (data & 0b1000_0000) == 0b1000_0000);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.register_a.set_data(data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+            _ => {
+                let addr = self.get_addr(&op);
+                let mut temp = addr;
+                let data = self.mem.loadb(&mut temp);
+                let (data, flag) = (data << 1, (data & 0b1000_0000) == 0b1000_0000);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.mem.storeb(addr, data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+        }
+    }
+
+    fn ror(&mut self, op: Operation) {
+        match op.addressing_mode {
+            AddressingModes::Accumulator => {
+                let data = self.get_data(&op);
+                let (data, flag) = (data >> 1, (data & 0b0000_0001) == 0b0000_0001);
+                let data = data | ((self.register_p.check_flag(Flags::C) as u8) << 7);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.register_a.set_data(data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+            _ => {
+                let addr = self.get_addr(&op);
+                let mut temp = addr;
+                let data = self.mem.loadb(&mut temp);
+                let (data, flag) = (data >> 1, (data & 0b0000_0001) == 0b0000_0001);
+                let data = data | ((self.register_p.check_flag(Flags::C) as u8) << 7);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.mem.storeb(addr, data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+        }
+    }
+
+    fn rol(&mut self, op: Operation) {
+        match op.addressing_mode {
+            AddressingModes::Accumulator => {
+                let data = self.get_data(&op);
+                let (data, flag) = (data << 1, (data & 0b1000_0000) == 0b1000_0000);
+                let data = data | (self.register_p.check_flag(Flags::C) as u8);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.register_a.set_data(data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+            _ => {
+                let addr = self.get_addr(&op);
+                let mut temp = addr;
+                let data = self.mem.loadb(&mut temp);
+                let (data, flag) = (data << 1, (data & 0b1000_0000) == 0b1000_0000);
+                let data = data | (self.register_p.check_flag(Flags::C) as u8);
+                self.set_zn(data);
+                self.register_p.set_flag(Flags::C, flag);
+                self.mem.storeb(addr, data);
+                self.debug(&op, format!("{:02X}", data), None);
+            }
+        }
+    }
+
+    fn sty(&mut self, op: Operation) {
+        let addr = self.get_addr(&op);
+        self.mem.storeb(addr, self.register_y.data());
+        self.debug(
+            &op,
+            format!("{:04X}", addr),
+            Some(format!("{:02X}", self.register_y.data())),
+        );
+    }
+
+    fn inc(&mut self, op: Operation) {
+        let addr = self.get_addr(&op);
+        let mut temp = addr;
+        let data = self.mem.loadb(&mut temp).wrapping_add(1);
+        self.set_zn(data);
+        self.mem.storeb(addr, data);
+        self.debug(&op, format!("{:04X}", addr), Some(format!("{:02X}", data)));
+    }
+
+    fn dec(&mut self, op: Operation) {
+        let addr = self.get_addr(&op);
+        let mut temp = addr;
+        let data = self.mem.loadb(&mut temp).wrapping_sub(1);
+        self.set_zn(data);
+        self.mem.storeb(addr, data);
+        self.debug(&op, format!("{:04X}", addr), Some(format!("{:02X}", data)));
+    }
 }
 
 fn operation(opc: u8) -> Operation {
@@ -609,6 +788,24 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::BRK,
             cycle: 7,
             addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x01 => Operation {
+            instruction_type: InstructionTypes::ORA,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
+        0x05 => Operation {
+            instruction_type: InstructionTypes::ORA,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0x06 => Operation {
+            instruction_type: InstructionTypes::ASL,
+            cycle: 5,
+            addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
         0x08 => Operation {
@@ -623,10 +820,34 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Immediate,
             opc,
         },
+        0x0a => Operation {
+            instruction_type: InstructionTypes::ASL,
+            cycle: 2,
+            addressing_mode: AddressingModes::Accumulator,
+            opc,
+        },
+        0x0d => Operation {
+            instruction_type: InstructionTypes::ORA,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x0e => Operation {
+            instruction_type: InstructionTypes::ASL,
+            cycle: 6,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0x10 => Operation {
             instruction_type: InstructionTypes::BPL,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0x11 => Operation {
+            instruction_type: InstructionTypes::ORA,
+            cycle: 5,
+            addressing_mode: AddressingModes::IndirectY,
             opc,
         },
         0x18 => Operation {
@@ -641,9 +862,27 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Absolute,
             opc,
         },
+        0x21 => Operation {
+            instruction_type: InstructionTypes::AND,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
         0x24 => Operation {
             instruction_type: InstructionTypes::BIT,
             cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0x25 => Operation {
+            instruction_type: InstructionTypes::AND,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0x26 => Operation {
+            instruction_type: InstructionTypes::ROL,
+            cycle: 5,
             addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
@@ -659,10 +898,40 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Immediate,
             opc,
         },
+        0x2a => Operation {
+            instruction_type: InstructionTypes::ROL,
+            cycle: 2,
+            addressing_mode: AddressingModes::Accumulator,
+            opc,
+        },
+        0x2c => Operation {
+            instruction_type: InstructionTypes::BIT,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x2d => Operation {
+            instruction_type: InstructionTypes::AND,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x2e => Operation {
+            instruction_type: InstructionTypes::ROL,
+            cycle: 6,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0x30 => Operation {
             instruction_type: InstructionTypes::BMI,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0x31 => Operation {
+            instruction_type: InstructionTypes::AND,
+            cycle: 5,
+            addressing_mode: AddressingModes::IndirectY,
             opc,
         },
         0x38 => Operation {
@@ -677,10 +946,22 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Implicit,
             opc,
         },
-        0x4c => Operation {
-            instruction_type: InstructionTypes::JMP,
+        0x41 => Operation {
+            instruction_type: InstructionTypes::EOR,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
+        0x45 => Operation {
+            instruction_type: InstructionTypes::EOR,
             cycle: 3,
-            addressing_mode: AddressingModes::Absolute,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0x46 => Operation {
+            instruction_type: InstructionTypes::LSR,
+            cycle: 5,
+            addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
         0x48 => Operation {
@@ -701,16 +982,58 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Accumulator,
             opc,
         },
+        0x4c => Operation {
+            instruction_type: InstructionTypes::JMP,
+            cycle: 3,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x4d => Operation {
+            instruction_type: InstructionTypes::EOR,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x4e => Operation {
+            instruction_type: InstructionTypes::LSR,
+            cycle: 6,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0x50 => Operation {
             instruction_type: InstructionTypes::BVC,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
             opc,
         },
+        0x51 => Operation {
+            instruction_type: InstructionTypes::EOR,
+            cycle: 5,
+            addressing_mode: AddressingModes::IndirectY,
+            opc,
+        },
         0x60 => Operation {
             instruction_type: InstructionTypes::RTS,
             cycle: 6,
             addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x61 => Operation {
+            instruction_type: InstructionTypes::ADC,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
+        0x65 => Operation {
+            instruction_type: InstructionTypes::ADC,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0x66 => Operation {
+            instruction_type: InstructionTypes::ROR,
+            cycle: 5,
+            addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
         0x68 => Operation {
@@ -725,16 +1048,58 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Immediate,
             opc,
         },
+        0x6a => Operation {
+            instruction_type: InstructionTypes::ROR,
+            cycle: 2,
+            addressing_mode: AddressingModes::Accumulator,
+            opc,
+        },
+        0x6c => Operation {
+            instruction_type: InstructionTypes::JMP,
+            cycle: 5,
+            addressing_mode: AddressingModes::Indirect,
+            opc,
+        },
+        0x6d => Operation {
+            instruction_type: InstructionTypes::ADC,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x6e => Operation {
+            instruction_type: InstructionTypes::ROR,
+            cycle: 6,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0x70 => Operation {
             instruction_type: InstructionTypes::BVS,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
             opc,
         },
+        0x71 => Operation {
+            instruction_type: InstructionTypes::ADC,
+            cycle: 5,
+            addressing_mode: AddressingModes::IndirectY,
+            opc,
+        },
         0x78 => Operation {
             instruction_type: InstructionTypes::SEI,
             cycle: 2,
             addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0x81 => Operation {
+            instruction_type: InstructionTypes::STA,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
+        0x84 => Operation {
+            instruction_type: InstructionTypes::STY,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
         0x85 => Operation {
@@ -761,6 +1126,18 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Implicit,
             opc,
         },
+        0x8c => Operation {
+            instruction_type: InstructionTypes::STY,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0x8d => Operation {
+            instruction_type: InstructionTypes::STA,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0x8e => Operation {
             instruction_type: InstructionTypes::STX,
             cycle: 4,
@@ -771,6 +1148,12 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::BCC,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0x91 => Operation {
+            instruction_type: InstructionTypes::STA,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectY,
             opc,
         },
         0x98 => Operation {
@@ -791,10 +1174,34 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Immediate,
             opc,
         },
+        0xa1 => Operation {
+            instruction_type: InstructionTypes::LDA,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
         0xa2 => Operation {
             instruction_type: InstructionTypes::LDX,
             cycle: 2,
             addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
+        0xa4 => Operation {
+            instruction_type: InstructionTypes::LDY,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0xa5 => Operation {
+            instruction_type: InstructionTypes::LDA,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0xa6 => Operation {
+            instruction_type: InstructionTypes::LDX,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
         0xa8 => Operation {
@@ -815,6 +1222,12 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Implicit,
             opc,
         },
+        0xac => Operation {
+            instruction_type: InstructionTypes::LDY,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0xad => Operation {
             instruction_type: InstructionTypes::LDA,
             cycle: 4,
@@ -833,10 +1246,22 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Relative,
             opc,
         },
+        0xb1 => Operation {
+            instruction_type: InstructionTypes::LDA,
+            cycle: 5,
+            addressing_mode: AddressingModes::IndirectY,
+            opc,
+        },
         0xb8 => Operation {
             instruction_type: InstructionTypes::CLV,
             cycle: 2,
             addressing_mode: AddressingModes::Implicit,
+            opc,
+        },
+        0xb9 => Operation {
+            instruction_type: InstructionTypes::LDA,
+            cycle: 4,
+            addressing_mode: AddressingModes::AbsoluteY,
             opc,
         },
         0xba => Operation {
@@ -849,6 +1274,30 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::CPY,
             cycle: 2,
             addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
+        0xc1 => Operation {
+            instruction_type: InstructionTypes::CMP,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
+        0xc4 => Operation {
+            instruction_type: InstructionTypes::CPY,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0xc5 => Operation {
+            instruction_type: InstructionTypes::CMP,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0xc6 => Operation {
+            instruction_type: InstructionTypes::DEC,
+            cycle: 5,
+            addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
         0xc8 => Operation {
@@ -869,10 +1318,34 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Implicit,
             opc,
         },
+        0xcc => Operation {
+            instruction_type: InstructionTypes::CPY,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0xcd => Operation {
+            instruction_type: InstructionTypes::CMP,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0xce => Operation {
+            instruction_type: InstructionTypes::DEC,
+            cycle: 6,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0xd0 => Operation {
             instruction_type: InstructionTypes::BNE,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0xd1 => Operation {
+            instruction_type: InstructionTypes::CMP,
+            cycle: 5,
+            addressing_mode: AddressingModes::IndirectY,
             opc,
         },
         0xd8 => Operation {
@@ -885,6 +1358,30 @@ fn operation(opc: u8) -> Operation {
             instruction_type: InstructionTypes::CPX,
             cycle: 2,
             addressing_mode: AddressingModes::Immediate,
+            opc,
+        },
+        0xe1 => Operation {
+            instruction_type: InstructionTypes::SBC,
+            cycle: 6,
+            addressing_mode: AddressingModes::IndirectX,
+            opc,
+        },
+        0xe4 => Operation {
+            instruction_type: InstructionTypes::CPX,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0xe5 => Operation {
+            instruction_type: InstructionTypes::SBC,
+            cycle: 3,
+            addressing_mode: AddressingModes::ZeroPage,
+            opc,
+        },
+        0xe6 => Operation {
+            instruction_type: InstructionTypes::INC,
+            cycle: 5,
+            addressing_mode: AddressingModes::ZeroPage,
             opc,
         },
         0xe8 => Operation {
@@ -905,10 +1402,34 @@ fn operation(opc: u8) -> Operation {
             addressing_mode: AddressingModes::Empty,
             opc,
         },
+        0xec => Operation {
+            instruction_type: InstructionTypes::CPX,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0xed => Operation {
+            instruction_type: InstructionTypes::SBC,
+            cycle: 4,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
+        0xee => Operation {
+            instruction_type: InstructionTypes::INC,
+            cycle: 6,
+            addressing_mode: AddressingModes::Absolute,
+            opc,
+        },
         0xf0 => Operation {
             instruction_type: InstructionTypes::BEQ,
             cycle: 2,
             addressing_mode: AddressingModes::Relative,
+            opc,
+        },
+        0xf1 => Operation {
+            instruction_type: InstructionTypes::SBC,
+            cycle: 5,
+            addressing_mode: AddressingModes::IndirectY,
             opc,
         },
         0xf8 => Operation {
