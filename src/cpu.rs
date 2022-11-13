@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     memory::CpuMemory,
     register::{Flags, Register, RegisterWork},
+    CONST::{IRQ_ADDR, NMI_ADDR, RESET_ADDR},
+    ROM::ROM,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -130,6 +132,20 @@ impl CPU {
             now_cycles: 0,
         }
     }
+
+    pub fn load(self, data: Vec<u8>) -> Self {
+        let mut save_data: CPU = serde_json::from_slice(&data).expect("decode archive failed!");
+        save_data.mem.rom = self.mem.rom;
+        save_data
+    }
+
+    pub fn save(&mut self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap()
+    }
+
+    pub fn load_rom(&mut self, data: Vec<u8>) {
+        self.mem.rom = Some(ROM::new(data, "cpu"));
+    }
 }
 
 impl CPU {
@@ -228,14 +244,32 @@ impl CPU {
 }
 
 impl CPU {
-    pub fn load(self, data: Vec<u8>) -> Self {
-        let mut save_data: CPU = serde_json::from_slice(&data).expect("decode archive failed!");
-        save_data.mem.rom = self.mem.rom;
-        save_data
+    pub fn irq(&mut self) {
+        if self.register_p.check_flag(Flags::I) {
+            return;
+        }
+
+        self.register_sp
+            .stack_push_word(&mut self.mem, self.program_counter.data());
+        self.register_p.stack_push_byte(
+            &mut self.mem,
+            (self.register_p.data() | Flags::U as u8) & !(Flags::B as u8),
+        );
+        #[allow(const_item_mutation)]
+        self.program_counter.set_data(self.mem.loadw(&mut IRQ_ADDR));
+        self.defer_cycles += 7;
     }
 
-    pub fn save(&mut self) -> Vec<u8> {
-        serde_json::to_vec(self).unwrap()
+    pub fn nmi(&mut self) {
+        self.register_sp
+            .stack_push_word(&mut self.mem, self.program_counter.data());
+        self.register_p.stack_push_byte(
+            &mut self.mem,
+            (self.register_p.data() | Flags::U as u8) & !(Flags::B as u8),
+        );
+        #[allow(const_item_mutation)]
+        self.program_counter.set_data(self.mem.loadw(&mut NMI_ADDR));
+        self.defer_cycles += 7;
     }
 
     pub fn reset(&mut self) {
@@ -244,7 +278,9 @@ impl CPU {
         self.register_y.set_data(0);
         self.register_sp.set_data(0xfd);
         self.register_p.set_data(0x24);
-        self.program_counter.set_data(self.mem.loadw(&mut 0xfffc));
+        #[allow(const_item_mutation)]
+        self.program_counter
+            .set_data(self.mem.loadw(&mut RESET_ADDR));
     }
 
     pub fn run(&mut self) {

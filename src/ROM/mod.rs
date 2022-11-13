@@ -8,7 +8,7 @@ pub mod mapper0;
 
 pub trait Mapper {
     fn read(&self, rom: &ROM, address: &mut u16) -> u8;
-    fn write(&mut self, rom: &mut Vec<u8>, address: u16, value: u8);
+    fn write(&mut self, ram: &mut Vec<u8>, address: u16, value: u8);
 }
 
 // #[allow(non_camel_case_types)]
@@ -39,16 +39,16 @@ pub struct Header {
 }
 
 pub struct ROM {
-    prg: Vec<u8>,
-    chr: Vec<u8>,
+    prg: Option<Vec<u8>>,
+    chr: Option<Vec<u8>>,
     ram: Vec<u8>,
-    mapper: Box<dyn Mapper + 'static>,
+    mapper: Box<dyn Mapper + Sync + Send + 'static>,
     #[allow(dead_code)]
     screen_mirroring: Mirroring,
 }
 
 impl ROM {
-    pub fn new(data: Vec<u8>) -> Self {
+    pub fn new(data: Vec<u8>, part: &str) -> Self {
         let header = parse_header(&data);
         let mapper = match header.mapper {
             0 => Box::new(Mapper0 {}),
@@ -61,9 +61,28 @@ impl ROM {
             header.chr_rom_start + header.chr_rom_size
         );
 
+        let mut prg = None;
+        let mut chr = None;
+
+        match part {
+            "cpu" => {
+                prg = Some(
+                    data[header.prg_rom_start..(header.prg_rom_start + header.prg_rom_size)]
+                        .to_vec(),
+                )
+            }
+            "ppu" => {
+                chr = Some(
+                    data[header.chr_rom_start..(header.chr_rom_start + header.chr_rom_size)]
+                        .to_vec(),
+                )
+            }
+            _ => panic!("unknown part!"),
+        }
+
         ROM {
-            prg: data[header.prg_rom_start..(header.prg_rom_start + header.prg_rom_size)].to_vec(),
-            chr: data[header.chr_rom_start..(header.chr_rom_start + header.chr_rom_size)].to_vec(),
+            prg,
+            chr,
             ram: vec![0; header.ram_size],
             mapper,
             screen_mirroring: header.screen_mirroring,

@@ -1,7 +1,9 @@
 use log::debug;
 use rand::Rng;
 use rust_nes::cpu::*;
+use rust_nes::ppu::PPU;
 use std::fs;
+use std::thread;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -11,11 +13,13 @@ use sdl2::EventPump;
 
 fn main() {
     env_logger::init();
-    let data = fs::read("./src/tests/snake.nes").expect("can't read file");
+    let data = fs::read("./tests/snake.nes").expect("can't read file");
     debug!("{:X?}", &data[0..16]);
     let mut cpu = CPU::new();
-    cpu.mem.load_rom(data);
+    cpu.load_rom(data.clone());
     cpu.reset();
+    let mut ppu = PPU::new();
+    ppu.load_rom(data);
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -35,6 +39,8 @@ fn main() {
 
     let mut screen_state = [0 as u8; 32 * 3 * 32];
     let mut rng = rand::thread_rng();
+
+    thread::spawn(move || ppu.run());
 
     cpu.run_with_callback(move |cpu| {
         handle_user_input(cpu, &mut event_pump);

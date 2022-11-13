@@ -5,3 +5,4 @@ mod CONST;
 pub mod cpu;
 mod memory;
 mod register;
+pub mod ppu;

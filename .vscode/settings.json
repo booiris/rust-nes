@@ -30,6 +30,9 @@
     "dist": true,
     "**/backup": true,
   },
+  "rust-analyzer.cargo.features": [
+    "cpu-debug"
+  ],
   // "rust-analyzer.cargo.features": [
   //   "local"
   // ],
