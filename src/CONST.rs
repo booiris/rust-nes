@@ -5,7 +5,3 @@ pub const STACK_BASE: u16 = 0x0100;
 pub const RESET_ADDR: u16 = 0xFFFC;
 pub const NMI_ADDR: u16 = 0xFFFA;
 pub const IRQ_ADDR: u16 = 0xFFFE;
-pub const RAM_BEGIN: u16 = 0x0000;
-pub const RAM_MIRRORS_END: u16 = 0x1FFF;
-// pub const PPU_REGISTERS: u16 = 0x2000;
-pub const PPU_REGISTERS_MIRRORS_END: u16 = 0x3FFF;

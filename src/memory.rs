@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
-use crate::CONST::*;
 use crate::ROM::ROM;
 
 #[derive(Serialize, Deserialize)]
@@ -24,21 +23,26 @@ impl CpuMemory {
 impl CpuMemory {
     pub fn storeb(&mut self, address: u16, data: u8) {
         match address {
-            RAM_BEGIN..=RAM_MIRRORS_END => {
+            0x0000..=0x1FFF => {
                 self.ram[(address & 0x07FF) as usize] = data;
             }
-            0x2000 => {}
-            0x2006 => {}
-            0x2007 => {}
-            0x2008..=PPU_REGISTERS_MIRRORS_END => {}
+            0x2000..=0x3FFF => match address {
+                0x2000 => {}
+                0x2006 => {}
+                0x2007 => {}
+                _ => {
+                    let mirror_down_addr = address & 0b00100000_00000111;
+                    self.storeb(mirror_down_addr, data)
+                }
+            },
+            0x4000..=0x7FFF => {
+                todo!("RAM PPU on ROM not impl!")
+            }
             0x8000..=0xFFFF => {
                 self.rom
                     .as_mut()
                     .expect("not load rom!")
                     .write(address, data);
-            }
-            _ => {
-                panic!("storeb: can not accress address! {:X}", address);
             }
         }
     }
@@ -50,20 +54,26 @@ impl CpuMemory {
 
     pub fn loadb(&self, address: &mut u16) -> u8 {
         let res = match address {
-            RAM_BEGIN..=RAM_MIRRORS_END => self.ram[(*address & 0x07FF) as usize],
-            0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
-                panic!("Attempt to read from write-only PPU address {:x}", address);
-            }
-            0x2007 => {
-                todo!()
-            }
-            0x2008..=PPU_REGISTERS_MIRRORS_END => {
-                todo!()
+            0x0000..=0x1FFF => self.ram[(*address & 0x07FF) as usize],
+            0x2000..=0x3FFF => match address {
+                0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
+                    panic!("Attempt to read from write-only PPU address {:x}", address);
+                }
+                0x2002 => {
+                    todo!()
+                }
+                0x2007 => {
+                    todo!()
+                }
+                _ => {
+                    let mut mirror_down_addr = *address & 0b00100000_00000111;
+                    self.loadb(&mut mirror_down_addr)
+                }
+            },
+            0x4000..=0x7FFF => {
+                todo!("RAM PPU on ROM not impl!")
             }
             0x8000..=0xFFFF => self.rom.as_ref().expect("not load rom!").read(address),
-            _ => {
-                panic!("storeb: can not accress address! {:X}", address);
-            }
         };
         *address += 1;
         res
