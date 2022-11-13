@@ -23,26 +23,26 @@ pub struct Register<T: Add> {
 }
 
 impl AddAssign<u8> for Register<u8> {
-    fn add_assign(&mut self, num: u8) {
-        self.data += num;
+    fn add_assign(&mut self, rhs: u8) {
+        self.data = self.data.wrapping_add(rhs);
     }
 }
 
 impl SubAssign<u8> for Register<u8> {
     fn sub_assign(&mut self, rhs: u8) {
-        self.data -= rhs;
+        self.data = self.data.wrapping_sub(rhs);
     }
 }
 
 impl AddAssign<u16> for Register<u16> {
-    fn add_assign(&mut self, num: u16) {
-        self.data += num;
+    fn add_assign(&mut self, rhs: u16) {
+        self.data = self.data.wrapping_add(rhs);
     }
 }
 
 impl SubAssign<u16> for Register<u16> {
     fn sub_assign(&mut self, rhs: u16) {
-        self.data -= rhs;
+        self.data = self.data.wrapping_sub(rhs);
     }
 }
 
@@ -83,8 +83,9 @@ impl RegisterWork<u8> for Register<u8> {
 }
 
 impl Register<u8> {
+    // todo!!! stack loop
     pub fn get_stack_addr(&self) -> u16 {
-        STACK_BASE + self.data as u16
+        STACK_BASE.wrapping_add(self.data as u16)
     }
     pub fn stack_push_byte(&mut self, mem: &mut CpuMemory, data: u8) {
         mem.storeb(self.get_stack_addr(), data);

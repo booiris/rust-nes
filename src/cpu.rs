@@ -189,31 +189,31 @@ impl CPU {
                     .mem
                     .loadb(self.program_counter.mut_data())
                     .wrapping_add(self.register_x.data()) as u16;
-                let mut addr2 = (addr1 & 0xFF00) | ((addr1 + 1) & 0x00FF);
+                let mut addr2 = (addr1 & 0xFF00) | ((addr1.wrapping_add(1)) & 0x00FF);
                 self.mem.loadb(&mut addr1) as u16 | (self.mem.loadb(&mut addr2) as u16) << 8
             }
             AddressingModes::IndirectY => {
                 let mut addr1 = self.mem.loadb(self.program_counter.mut_data()) as u16;
-                let mut addr2 = (addr1 & 0xFF00) | ((addr1 + 1) & 0x00FF);
+                let mut addr2 = (addr1 & 0xFF00) | ((addr1.wrapping_add(1)) & 0x00FF);
                 let addr =
                     self.mem.loadb(&mut addr1) as u16 | (self.mem.loadb(&mut addr2) as u16) << 8;
                 let old_addr = addr;
                 let addr = addr.wrapping_add(self.register_y.data() as u16) as u16;
                 if self.new_page(old_addr, addr) && op.cycle <= 5 {
-                    self.defer_cycles += 1;
+                    self.defer_cycles = self.defer_cycles.wrapping_add(1);
                 }
                 addr
             }
             AddressingModes::Indirect => {
                 let mut addr1 = self.mem.loadw(self.program_counter.mut_data());
-                let mut addr2 = (addr1 & 0xFF00) | ((addr1 + 1) & 0x00FF);
+                let mut addr2 = (addr1 & 0xFF00) | ((addr1.wrapping_add(1)) & 0x00FF);
                 self.mem.loadb(&mut addr1) as u16 | (self.mem.loadb(&mut addr2) as u16) << 8
             }
             AddressingModes::AbsoluteX => {
                 let old_addr = self.mem.loadw(self.program_counter.mut_data());
                 let new_addr = old_addr.wrapping_add(self.register_x.data() as u16);
                 if self.new_page(old_addr, new_addr) && op.cycle <= 4 {
-                    self.defer_cycles += 1;
+                    self.defer_cycles = self.defer_cycles.wrapping_add(1);
                 }
                 new_addr
             }
@@ -221,7 +221,7 @@ impl CPU {
                 let old_addr = self.mem.loadw(self.program_counter.mut_data());
                 let new_addr = old_addr.wrapping_add(self.register_y.data() as u16);
                 if self.new_page(old_addr, new_addr) && op.cycle <= 4 {
-                    self.defer_cycles += 1;
+                    self.defer_cycles = self.defer_cycles.wrapping_add(1);
                 }
                 new_addr
             }
@@ -257,7 +257,7 @@ impl CPU {
         );
         #[allow(const_item_mutation)]
         self.program_counter.set_data(self.mem.loadw(&mut IRQ_ADDR));
-        self.defer_cycles += 7;
+        self.defer_cycles = self.defer_cycles.wrapping_add(7);
     }
 
     pub fn nmi(&mut self) {
@@ -269,7 +269,7 @@ impl CPU {
         );
         #[allow(const_item_mutation)]
         self.program_counter.set_data(self.mem.loadw(&mut NMI_ADDR));
-        self.defer_cycles += 7;
+        self.defer_cycles = self.defer_cycles.wrapping_add(7);
     }
 
     pub fn reset(&mut self) {
@@ -294,7 +294,7 @@ impl CPU {
     }
 
     fn clock(&mut self) {
-        self.now_cycles += 1;
+        self.now_cycles = self.now_cycles.wrapping_add(1);
         if self.defer_cycles > 0 {
             self.defer_cycles -= 1;
         }
@@ -316,7 +316,7 @@ impl CPU {
 
 impl CPU {
     fn exec(&mut self, op: Operation) {
-        self.defer_cycles += op.cycle as usize;
+        self.defer_cycles = self.defer_cycles.wrapping_add(op.cycle as usize);
         match op.instruction_type {
             InstructionTypes::BRK => self.brk(op),
             InstructionTypes::JMP => self.jmp(op),
@@ -429,16 +429,17 @@ impl CPU {
     fn jmp_by_flag(&mut self, op: &Operation, flag: Flags, on: bool) {
         let data = self.get_data(&op);
         if self.register_p.check_flag(flag) == on {
-            self.defer_cycles += 1;
+            self.defer_cycles = self.defer_cycles.wrapping_add(1);
             let old_addr = self.program_counter.data();
             if (data as i8) < 0 {
                 self.program_counter -= (data as i8).abs() as u16;
             } else {
-                self.program_counter += data as u16;
+                self.program_counter
+                    .set_data(self.program_counter.data().wrapping_add(data as u16));
             }
             let new_addr = self.program_counter.data();
             if self.new_page(old_addr, new_addr) {
-                self.defer_cycles += 1;
+                self.defer_cycles = self.defer_cycles.wrapping_add(1);
             }
         }
         self.debug(
@@ -554,7 +555,10 @@ impl CPU {
     }
 
     fn rts(&mut self, op: Operation) {
-        let addr = self.register_sp.stack_pop_word(&mut self.mem) + 1;
+        let addr = self
+            .register_sp
+            .stack_pop_word(&mut self.mem)
+            .wrapping_add(1);
         self.program_counter.set_data(addr);
         self.debug(&op, format!("{:04X}", addr), None);
     }
