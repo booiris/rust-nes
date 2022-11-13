@@ -2,6 +2,7 @@
 
 // use core::time;
 // use std::thread;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     memory::CpuMemory,
@@ -100,6 +101,7 @@ struct Operation {
     opc: u8,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct CPU {
     program_counter: Register<u16>,
     register_a: Register<u8>,
@@ -109,6 +111,7 @@ pub struct CPU {
     register_p: Register<u8>,
 
     pub mem: CpuMemory,
+
     defer_cycles: usize,
     now_cycles: usize,
 }
@@ -225,6 +228,16 @@ impl CPU {
 }
 
 impl CPU {
+    pub fn load(self, data: Vec<u8>) -> Self {
+        let mut save_data: CPU = serde_json::from_slice(&data).expect("decode archive failed!");
+        save_data.mem.rom = self.mem.rom;
+        save_data
+    }
+
+    pub fn save(&mut self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap()
+    }
+
     pub fn reset(&mut self) {
         self.register_a.set_data(0);
         self.register_x.set_data(0);
@@ -233,6 +246,7 @@ impl CPU {
         self.register_p.set_data(0x24);
         self.program_counter.set_data(self.mem.loadw(&mut 0xfffc));
     }
+
     pub fn run(&mut self) {
         //TODO
         self.program_counter.set_data(0xC000);

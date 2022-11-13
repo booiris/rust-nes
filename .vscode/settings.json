@@ -28,7 +28,7 @@
     // "**/mod.rs": true,
     "target": true,
     "dist": true,
-    "**/backup": true
+    "**/backup": true,
   },
   // "rust-analyzer.cargo.features": [
   //   "local"

@@ -1,8 +1,14 @@
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
+
 use crate::ROM::ROM;
 
+#[derive(Serialize, Deserialize)]
 pub struct CpuMemory {
-    ram: [u8; 2048],
-    rom: Option<ROM>,
+    #[serde(with = "BigArray")]
+    pub ram: [u8; 2048],
+    #[serde(skip)]
+    pub rom: Option<ROM>,
 }
 
 impl CpuMemory {

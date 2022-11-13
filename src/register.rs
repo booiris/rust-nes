@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, SubAssign};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{memory::CpuMemory, CONST::STACK_BASE};
 
 #[allow(dead_code)]
@@ -15,7 +17,7 @@ pub enum Flags {
     N = 1 << 7, // Negative
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Register<T: Add> {
     data: T,
 }
@@ -107,11 +109,6 @@ impl Register<u8> {
         self.data += 1;
         data
     }
-    // pub fn peak_byte(&mut self, mem: &mut CpuMemory) -> u8 {
-    //     let mut addr = self.get_stack_addr() + 1;
-    //     let data = mem.loadb(&mut addr);
-    //     data
-    // }
 }
 
 impl Register<u8> {
