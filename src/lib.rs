@@ -1,8 +1,9 @@
 #[allow(non_snake_case)]
-pub mod ROM;
-#[allow(non_snake_case)]
 mod CONST;
+#[allow(non_snake_case)]
+pub mod ROM;
+mod bus;
 pub mod cpu;
 mod memory;
-mod register;
 pub mod ppu;
+mod register;

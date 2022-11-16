@@ -83,7 +83,7 @@ impl RegisterWork<u8> for Register<u8> {
 }
 
 impl Register<u8> {
-    // todo!!! stack loop
+    // TODO!!! stack loop
     pub fn get_stack_addr(&self) -> u16 {
         STACK_BASE.wrapping_add(self.data as u16)
     }

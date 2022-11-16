@@ -1,10 +1,13 @@
 #![allow(dead_code)]
 
+use std::sync::mpsc::{Receiver, Sender};
+
 // use core::time;
 // use std::thread;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    bus::BUS,
     memory::CpuMemory,
     register::{Flags, Register, RegisterWork},
     CONST::{IRQ_ADDR, NMI_ADDR, RESET_ADDR},
@@ -145,6 +148,10 @@ impl CPU {
 
     pub fn load_rom(&mut self, data: Vec<u8>) {
         self.mem.rom = Some(ROM::new(data, "cpu"));
+    }
+
+    pub fn load_bus(&mut self, sender: Sender<(u16, u8)>, receiver: Receiver<(u16, u8)>) {
+        self.mem.bus = Some(BUS::new(sender, receiver));
     }
 }
 

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
-use crate::ROM::ROM;
+use crate::{bus::BUS, ROM::ROM};
 
 #[derive(Serialize, Deserialize)]
 pub struct CpuMemory {
@@ -9,6 +9,8 @@ pub struct CpuMemory {
     pub ram: [u8; 2048],
     #[serde(skip)]
     pub rom: Option<ROM>,
+    #[serde(skip)]
+    pub bus: Option<BUS>,
 }
 
 impl CpuMemory {
@@ -16,6 +18,7 @@ impl CpuMemory {
         CpuMemory {
             ram: [0; 2048],
             rom: None,
+            bus: None,
         }
     }
 }
@@ -27,9 +30,11 @@ impl CpuMemory {
                 self.ram[(address & 0x07FF) as usize] = data;
             }
             0x2000..=0x3FFF => match address {
-                0x2000 => {}
-                0x2006 => {}
-                0x2007 => {}
+                0x2000 | 0x2006 | 0x2007 => self
+                    .bus
+                    .as_ref()
+                    .expect("cpu has no bus!")
+                    .send_data(address, data),
                 _ => {
                     let mirror_down_addr = address & 0b00100000_00000111;
                     self.storeb(mirror_down_addr, data)
@@ -62,9 +67,11 @@ impl CpuMemory {
                 0x2002 => {
                     todo!()
                 }
-                0x2007 => {
-                    todo!()
-                }
+                0x2007 => self
+                    .bus
+                    .as_ref()
+                    .expect("cpu has no bus!")
+                    .receive_data(*address),
                 _ => {
                     let mut mirror_down_addr = *address & 0b00100000_00000111;
                     self.loadb(&mut mirror_down_addr)
@@ -92,6 +99,8 @@ pub struct PpuMemory {
     pub ram: [u8; 2048],
     #[serde(skip)]
     pub rom: Option<ROM>,
+    #[serde(skip)]
+    pub bus: Option<BUS>,
     palette_table: [u8; 32],
 }
 
@@ -100,6 +109,7 @@ impl PpuMemory {
         PpuMemory {
             ram: [0; 2048],
             rom: None,
+            bus: None,
             palette_table: [0; 32],
         }
     }
