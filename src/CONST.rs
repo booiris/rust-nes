@@ -6,7 +6,7 @@ pub const RESET_ADDR: u16 = 0xFFFC;
 pub const NMI_ADDR: u16 = 0xFFFA;
 pub const IRQ_ADDR: u16 = 0xFFFE;
 pub const WIDTH: usize = 256;
-pub const HIGHT: usize = 240;
+pub const HEIGHT: usize = 240;
 
 pub static SYSTEM_PALLETE: [(u8, u8, u8); 64] = [
     (0x80, 0x80, 0x80),

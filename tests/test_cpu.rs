@@ -1,8 +1,8 @@
 use log::debug;
 use rust_nes::cpu::*;
 use rust_nes::ppu::PPU;
+use std::fs;
 use std::sync::mpsc;
-use std::{fs, thread};
 
 #[test]
 fn main() {
@@ -20,7 +20,6 @@ fn main() {
     cpu.load_bus(cpu_bus.0, ppu_bus.1);
     ppu.load_bus(ppu_bus.0, cpu_bus.1);
 
-    thread::spawn(move || ppu.run());
     cpu.run();
 }
 
