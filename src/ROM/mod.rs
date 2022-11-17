@@ -39,8 +39,8 @@ pub struct Header {
 }
 
 pub struct ROM {
-    prg: Option<Vec<u8>>,
-    chr: Option<Vec<u8>>,
+    pub prg: Option<Vec<u8>>,
+    pub chr: Option<Vec<u8>>,
     ram: Vec<u8>,
     mapper: Box<dyn Mapper + Sync + Send + 'static>,
     #[allow(dead_code)]

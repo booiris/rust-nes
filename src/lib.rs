@@ -7,3 +7,4 @@ pub mod cpu;
 mod memory;
 pub mod ppu;
 mod register;
+pub mod frame;
