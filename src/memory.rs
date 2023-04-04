@@ -102,6 +102,7 @@ pub struct PpuMemory {
     #[serde(skip)]
     pub bus: Option<BUS>,
     palette_table: [u8; 32],
+    internal_data_buf: u8,
 }
 
 impl PpuMemory {
@@ -111,6 +112,7 @@ impl PpuMemory {
             rom: None,
             bus: None,
             palette_table: [0; 32],
+            internal_data_buf: 0,
         }
     }
 }
@@ -134,20 +136,28 @@ impl PpuMemory {
         self.storeb(address + 1, ((data >> 8) & 0xFF) as u8)
     }
 
-    pub fn loadb(&self, address: &mut u16) -> u8 {
-        let res;
-        if *address < 0x2000 {
-            res = self.ram[(*address & 0x07FF) as usize];
-        } else if *address < 0x6000 {
-            todo!()
-        } else {
-            res = self.rom.as_ref().expect("not load rom!").read(address);
+    pub fn loadb(&mut self, address: &mut u16) -> u8 {
+        match *address {
+            0..=0x1fff => {
+                let result = self.internal_data_buf;
+                self.internal_data_buf = self.rom.as_ref().expect("not load chr").read(address);
+                result
+            }
+            0x2000..=0x2fff => {
+                let result = self.internal_data_buf;
+                self.internal_data_buf = self.ram[*address as usize];
+                result
+            }
+            0x3000..=0x3eff => panic!(
+                "addr space 0x3000..0x3eff is not expected to be used, requested = {} ",
+                *address
+            ),
+            0x3f00..=0x3fff => self.palette_table[(*address - 0x3f00) as usize],
+            _ => panic!("unexpected access to mirrored space {}", *address),
         }
-        *address += 1;
-        res
     }
 
-    pub fn loadw(&self, address: &mut u16) -> u16 {
+    pub fn loadw(&mut self, address: &mut u16) -> u16 {
         let low = self.loadb(address) as u16;
         let high = (self.loadb(address) as u16) << 8;
         high | low

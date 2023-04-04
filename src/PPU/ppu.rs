@@ -6,6 +6,9 @@ use std::{
     thread,
 };
 
+use super::address::AddrRegister;
+use super::control::ControlRegister;
+
 pub struct Frame {
     pub data: Vec<u8>,
 }
@@ -29,12 +32,16 @@ impl Frame {
 #[derive(Serialize, Deserialize)]
 pub struct PPU {
     pub mem: PpuMemory,
+    addr: AddrRegister,
+    ctrl: ControlRegister,
 }
 
 impl PPU {
     pub fn new() -> Self {
         PPU {
             mem: PpuMemory::new(),
+            addr: AddrRegister::new(),
+            ctrl: ControlRegister::new(),
         }
     }
 
@@ -68,7 +75,66 @@ impl PPU {
 }
 
 impl PPU {
-    pub fn render(&self, frame: &mut Frame) {
+    fn write_to_ppu_addr(&mut self) {
+        let data = self.get_data(0x2006);
+        self.addr.update(data);
+    }
+
+    fn write_to_ctrl(&mut self) {
+        let data = self.get_data(0x2000);
+        self.ctrl.update(data);
+    }
+
+    fn write_data(&mut self) {
+        let addr = self.addr.get();
+        let data = self.get_data(0x2007);
+        self.mem.storeb(addr, data);
+        self.increment_vram_addr();
+    }
+
+    fn increment_vram_addr(&mut self) {
+        self.addr.increment(self.ctrl.vram_addr_increment());
+    }
+
+    fn read_data(&mut self) -> u8 {
+        let mut addr = self.addr.get();
+        self.increment_vram_addr();
+        self.mem.loadb(&mut addr)
+    }
+
+    fn get_data(&self, expect_addr: u16) -> u8 {
+        self.mem
+            .bus
+            .as_ref()
+            .expect("not load bus")
+            .receive_data(expect_addr)
+    }
+}
+
+// impl PPU {
+//     // Horizontal:
+//     //   [ A ] [ a ]
+//     //   [ B ] [ b ]
+
+//     // Vertical:
+//     //   [ A ] [ B ]
+//     //   [ a ] [ b ]
+//     pub fn mirror_vram_addr(&self, addr: u16) -> u16 {
+//         let mirrored_vram = addr & 0b10111111111111; // mirror down 0x3000-0x3eff to 0x2000 - 0x2eff
+//         let vram_index = mirrored_vram - 0x2000; // to vram vector
+//         let name_table = vram_index / 0x400; // to the name table index
+//         match (&self.mirroring, name_table) {
+//             (Mirroring::VERTICAL, 2) | (Mirroring::VERTICAL, 3) => vram_index - 0x800,
+//             (Mirroring::HORIZONTAL, 2) => vram_index - 0x400,
+//             (Mirroring::HORIZONTAL, 1) => vram_index - 0x400,
+//             (Mirroring::HORIZONTAL, 3) => vram_index - 0x800,
+//             _ => vram_index,
+//         }
+//     }
+// }
+
+impl PPU {
+    pub fn render(&mut self, frame: &mut Frame) {
         let bank = 0;
 
         for i in 0..0x03c0 {

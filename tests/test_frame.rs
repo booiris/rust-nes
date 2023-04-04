@@ -1,45 +1,12 @@
-use rust_nes::ppu::{Frame, PPU};
 use rust_nes::CONST::{HEIGHT, SYSTEM_PALLETE, WIDTH};
-use sdl2::event::Event;
-use sdl2::pixels::PixelFormatEnum;
+use rust_nes::PPU::ppu::{Frame, PPU};
 
 #[test]
 fn main() {
-    // init sdl2
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
-    let window = video_subsystem
-        .window("Tile viewer", (256.0 * 3.0) as u32, (240.0 * 3.0) as u32)
-        .position_centered()
-        .build()
-        .unwrap();
-
-    let mut canvas = window.into_canvas().present_vsync().build().unwrap();
-    let mut event_pump = sdl_context.event_pump().unwrap();
-    canvas.set_scale(3.0, 3.0).unwrap();
-
-    let creator = canvas.texture_creator();
-    let mut texture = creator
-        .create_texture_target(PixelFormatEnum::RGB24, 256, 240)
-        .unwrap();
-
     let data: Vec<u8> = std::fs::read("./tests/pacman.nes").unwrap();
     let mut ppu = PPU::new();
     ppu.load_rom(data.clone());
     let tile_frame = show_tile(&ppu.mem.rom.unwrap().chr.unwrap(), 0);
-
-    texture.update(None, &tile_frame.data, 256 * 3).unwrap();
-    canvas.copy(&texture, None, None).unwrap();
-    canvas.present();
-
-    loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. } => std::process::exit(0),
-                _ => { /* do nothing */ }
-            }
-        }
-    }
 }
 
 pub fn show_tile(chr_rom: &Vec<u8>, bank: usize) -> Frame {

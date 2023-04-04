@@ -1,7 +1,7 @@
 use log::debug;
 use rand::Rng;
 use rust_nes::cpu::*;
-use rust_nes::ppu::PPU;
+use rust_nes::PPU::ppu::PPU;
 use std::fs;
 
 use sdl2::event::Event;
@@ -21,23 +21,7 @@ fn main() {
     let mut ppu = PPU::new();
     ppu.load_rom(data);
 
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
-    let window = video_subsystem
-        .window("Snake game", (32.0 * 10.0) as u32, (32.0 * 10.0) as u32)
-        .position_centered()
-        .build()
-        .unwrap();
-
-    let mut canvas = window.into_canvas().present_vsync().build().unwrap();
-    let mut event_pump = sdl_context.event_pump().unwrap();
-    canvas.set_scale(10.0, 10.0).unwrap();
-    let creator = canvas.texture_creator();
-    let mut texture = creator
-        .create_texture_target(PixelFormatEnum::RGB24, 32, 32)
-        .unwrap();
-
-    let mut screen_state = [0 as u8; 32 * 3 * 32];
+    
     let mut rng = rand::thread_rng();
 
     cpu.run_with_callback(move |cpu| {

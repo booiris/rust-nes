@@ -3,21 +3,25 @@ name = "rust-nes"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-yew = "0.19"
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-web-sys = { version = "0.3", features = ["Touch", "TouchList"] }
-gloo-utils = "0.1.2"
-gloo = "0.8.0"
 env_logger = "0.9.1"
 log = "0.4.17"
-lazy_static = "1.4.0"
 bitflags = "1.2.1"
-sdl2 = "0.34.0"
 serde = "1.0.147"
 serde-big-array = "0.4.1"
 serde_json = "1.0.87"
+
+
+[dev-dependencies]
+yew = "0.20.0"
+web-sys = { version = "0.3", features = ["Touch", "TouchList"] }
+lazy_static = "1.4.0"
+sdl2 = "0.35.2"
+
 
 # [profile.release]
 # opt-level = 's'

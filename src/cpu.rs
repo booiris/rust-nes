@@ -300,7 +300,7 @@ impl CPU {
         }
     }
 
-    fn clock(&mut self) {
+    pub fn clock(&mut self) {
         self.now_cycles = self.now_cycles.wrapping_add(1);
         if self.defer_cycles > 0 {
             self.defer_cycles -= 1;

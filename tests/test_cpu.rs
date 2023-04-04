@@ -1,6 +1,6 @@
 use log::debug;
 use rust_nes::cpu::*;
-use rust_nes::ppu::PPU;
+use rust_nes::PPU::ppu::PPU;
 use std::fs;
 use std::sync::mpsc;
 

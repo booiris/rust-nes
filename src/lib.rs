@@ -5,5 +5,6 @@ pub mod ROM;
 mod bus;
 pub mod cpu;
 mod memory;
-pub mod ppu;
 mod register;
+#[allow(non_snake_case)]
+pub mod PPU;
