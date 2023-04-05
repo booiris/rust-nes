@@ -2,22 +2,21 @@
 name = "test"
 version = "0.1.0"
 edition = "2021"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-rust-nes = { path = "../" }
-env_logger = "0.9.1"
+rust-nes = { path = "../", features = [] }
 log = "0.4.17"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 color-rs = "0.7.1"
 web-sys = { version = "0.3.61", features = [
     "HtmlCanvasElement",
-    "CanvasRenderingContext2d"
+    "CanvasRenderingContext2d",
+    "console",
 ] }
 gloo = "0.8.0"
 wasm-bindgen = "0.2.84"
-gloo-console = "0.2.3"
 console_error_panic_hook = "0.1.7"

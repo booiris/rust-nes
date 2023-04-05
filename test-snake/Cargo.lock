@@ -512,6 +512,7 @@ dependencies = [
  "serde",
  "serde-big-array",
  "serde_json",
+ "web-sys",
 ]
 
 [[package]]
@@ -610,9 +611,7 @@ version = "0.1.0"
 dependencies = [
  "color-rs",
  "console_error_panic_hook",
- "env_logger",
  "gloo",
- "gloo-console",
  "log",
  "rand",
  "rust-nes",

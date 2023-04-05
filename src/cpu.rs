@@ -14,6 +14,12 @@ use crate::{
     ROM::ROM,
 };
 
+macro_rules! wasmLog {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into())
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum InstructionTypes {
     BRK,
@@ -99,6 +105,7 @@ enum AddressingModes {
     Empty,
 }
 
+#[derive(Debug)]
 struct Operation {
     instruction_type: InstructionTypes,
     cycle: u8,
@@ -302,6 +309,8 @@ impl CPU {
 
     pub fn clock(&mut self) {
         self.now_cycles = self.now_cycles.wrapping_add(1);
+        #[cfg(feature = "wasm-debug")]
+        wasmLog!("now_cycles: {}", self.now_cycles);
         if self.defer_cycles > 0 {
             self.defer_cycles -= 1;
         }
@@ -313,10 +322,16 @@ impl CPU {
     fn step(&mut self) {
         #[cfg(feature = "cpu-debug")]
         print!("{:04X}  ", self.program_counter.data());
-
+        #[cfg(feature = "wasm-debug")]
+        wasmLog!("pc: {:04X}", self.program_counter.data());
         let op_code = self.mem.loadb(self.program_counter.mut_data());
 
         let op = operation(op_code);
+        #[cfg(feature = "wasm-debug")]
+        {
+            wasmLog!("op code: {:02X}", op_code);
+            wasmLog!("op: {:?}", op);
+        }
         self.exec(op);
     }
 }
@@ -419,7 +434,35 @@ impl CPU {
         print!("\n");
     }
 
-    #[cfg(not(feature = "cpu-debug"))]
+    #[cfg(feature = "wasm-debug")]
+    fn debug(&self, op: &Operation, op_address: String, op_value: Option<String>) {
+        wasmLog!("{:02X} ", op.opc);
+        wasmLog!(" {:?} ", op.instruction_type);
+        match op.addressing_mode {
+            AddressingModes::Immediate => wasmLog!("#"),
+            AddressingModes::Absolute => wasmLog!("$"),
+            AddressingModes::ZeroPage => wasmLog!("$"),
+            AddressingModes::Relative => wasmLog!("$"),
+            _ => wasmLog!("?"),
+        }
+        wasmLog!("{}", op_address);
+        if let Some(v) = op_value {
+            wasmLog!(" = {}", v);
+        }
+        wasmLog!("         ");
+        wasmLog!(
+            "A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
+            self.register_a.data(),
+            self.register_x.data(),
+            self.register_y.data(),
+            self.register_p.data(),
+            self.register_sp.data(),
+            self.now_cycles
+        );
+        wasmLog!("\n");
+    }
+
+    #[cfg(not(any(feature = "cpu-debug", feature = "wasm-debug")))]
     fn debug(&self, _op: &Operation, _op_address: String, _op_value: Option<String>) {}
 }
 

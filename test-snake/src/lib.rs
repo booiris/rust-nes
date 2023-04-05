@@ -6,13 +6,22 @@ use rand::Rng;
 use rust_nes::{cpu::CPU, PPU::ppu::PPU};
 use wasm_bindgen::prelude::wasm_bindgen;
 
+macro_rules! wasmLog {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into())
+    }
+}
+
 #[wasm_bindgen]
 pub struct Window {
     width: u32,
     height: u32,
     screen: Vec<u8>,
     cpu: CPU,
+    tick: u32,
 }
+
+// const data =
 
 impl Window {
     fn read_screen_state(&mut self) -> bool {
@@ -42,27 +51,24 @@ impl Window {
 impl Window {
     pub fn new(data: &[u8]) -> Window {
         utils::set_panic_hook();
-        env_logger::init();
         let data: Vec<u8> = data.into();
-        debug!("{:X?}", &data[0..16]);
         let mut cpu = CPU::new();
         cpu.load_rom(data.clone());
         cpu.reset();
         let mut ppu = PPU::new();
         ppu.load_rom(data);
         let mut rng = rand::thread_rng();
-        let data = rng.gen_range(1, 16);
-        gloo_console::log!("data: ", data);
-        cpu.mem.storeb(0xfe, rng.gen_range(1, 200));
+        cpu.mem.storeb(0xfe, rng.gen_range(1, 16));
 
-        let width = 256;
-        let height = 240;
+        let width = 32;
+        let height = 32;
 
         Window {
             width,
             height,
             screen: vec![0; (width * height * 3) as usize],
             cpu,
+            tick: 0,
         }
     }
 
@@ -79,6 +85,7 @@ impl Window {
     }
 
     pub fn tick(&mut self) -> bool {
+        self.tick = self.tick.wrapping_add(1);
         self.cpu.clock();
         self.read_screen_state()
     }

@@ -31,7 +31,7 @@
     "**/backup": true,
   },
   "rust-analyzer.cargo.features": [
-    "cpu-debug"
+    "wasm-debug"
   ],
   // "rust-analyzer.cargo.features": [
   //   "local"

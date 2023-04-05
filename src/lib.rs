@@ -8,3 +8,4 @@ mod memory;
 mod register;
 #[allow(non_snake_case)]
 pub mod PPU;
+mod utils;
