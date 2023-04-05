@@ -1,7 +1,7 @@
 import init, { Window, wasm } from "./test.js";
 import { read_file } from "./foo.js";
 
-const CELL_SIZE = 2; // px
+const CELL_SIZE = 22; // px
 
 const run = (data) => {
     const window = Window.new(data);
@@ -20,18 +20,19 @@ const run = (data) => {
             console.log("drawing");
             draw(window, ctx);
         }
-
         iter += 1;
-        requestAnimationFrame(renderLoop);
+        // if (iter > 1000) {
+        //     return
+        // }
+        // console.log(iter);
+        setTimeout(() => requestAnimationFrame(renderLoop), 0);
     }
     renderLoop();
 
 }
 
-const DEAD_COLOR = '#00000';
-
 const getIndex = (row, col, width) => {
-    return row * width + col;
+    return row * width * 3 + col * 3;
 }
 
 const draw = (window, ctx) => {
@@ -48,7 +49,6 @@ const draw = (window, ctx) => {
             const g = screen[idx + 1];
             const b = screen[idx + 2];
             ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-            ctx.fillStyle = DEAD_COLOR;
             ctx.fillRect(
                 col * CELL_SIZE,
                 row * CELL_SIZE,
@@ -61,4 +61,5 @@ const draw = (window, ctx) => {
 }
 
 await init();
-read_file("./snake.nes").then(data => run(data));
+let data = await read_file("./snake.nes");
+run(data);
