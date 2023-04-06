@@ -1,11 +1,16 @@
 mod utils;
 
+use std::sync::atomic::AtomicU8;
+
 use color::{consts::*, Rgb};
-use log::debug;
 use rand::Rng;
 use rust_nes::{cpu::CPU, PPU::ppu::PPU};
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::{
+    prelude::{wasm_bindgen, Closure},
+    JsCast,
+};
 
+#[allow(unused_macros)]
 macro_rules! wasmLog {
     ( $( $t:tt )* ) => {
         web_sys::console::log_1(&format!( $( $t )* ).into())
@@ -13,7 +18,7 @@ macro_rules! wasmLog {
 }
 
 #[wasm_bindgen]
-pub struct Window {
+pub struct BackEnd {
     width: u32,
     height: u32,
     screen: Vec<u8>,
@@ -21,9 +26,9 @@ pub struct Window {
     tick: u32,
 }
 
-// const data =
+static ACTION: AtomicU8 = AtomicU8::new(0);
 
-impl Window {
+impl BackEnd {
     fn read_screen_state(&mut self) -> bool {
         let frame = &mut self.screen;
         let mut frame_idx = 0;
@@ -45,11 +50,29 @@ impl Window {
         }
         update
     }
+
+    fn handle_user_input(&mut self) {
+        match ACTION.load(std::sync::atomic::Ordering::SeqCst) {
+            1 => {
+                self.cpu.mem.storeb(0xff, 0x77);
+            }
+            2 => {
+                self.cpu.mem.storeb(0xff, 0x73);
+            }
+            3 => {
+                self.cpu.mem.storeb(0xff, 0x61);
+            }
+            4 => {
+                self.cpu.mem.storeb(0xff, 0x64);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[wasm_bindgen]
-impl Window {
-    pub fn new(data: &[u8]) -> Window {
+impl BackEnd {
+    pub fn new(data: &[u8]) -> BackEnd {
         utils::set_panic_hook();
         let data: Vec<u8> = data.into();
         let mut cpu = CPU::new();
@@ -60,10 +83,11 @@ impl Window {
         let mut rng = rand::thread_rng();
         cpu.mem.storeb(0xfe, rng.gen_range(1, 16));
 
+        add_key_board_listener();
+
         let width = 32;
         let height = 32;
-
-        Window {
+        BackEnd {
             width,
             height,
             screen: vec![0; (width * height * 3) as usize],
@@ -84,10 +108,15 @@ impl Window {
         self.screen.as_ptr()
     }
 
-    pub fn tick(&mut self) -> bool {
-        self.tick = self.tick.wrapping_add(1);
-        self.cpu.clock();
-        self.read_screen_state()
+    pub fn run(&mut self) {
+        loop {
+            self.tick = self.tick.wrapping_add(1);
+            self.handle_user_input();
+            self.cpu.clock();
+            if self.read_screen_state() {
+                return;
+            }
+        }
     }
 }
 
@@ -103,4 +132,32 @@ fn color(byte: u8) -> Rgb {
         7 | 14 => YELLOW,
         _ => CYAN,
     }
+}
+
+fn add_key_board_listener() {
+    let window = web_sys::window().expect("no global `window` exists");
+    let document = window.document().expect("should have a document on window");
+    let call_back = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+        let key = event.key();
+        match key.as_str() {
+            "w" => {
+                ACTION.store(1, std::sync::atomic::Ordering::SeqCst);
+            }
+            "s" => {
+                ACTION.store(2, std::sync::atomic::Ordering::SeqCst);
+            }
+            "a" => {
+                ACTION.store(3, std::sync::atomic::Ordering::SeqCst);
+            }
+            "d" => {
+                ACTION.store(4, std::sync::atomic::Ordering::SeqCst);
+            }
+            _ => {}
+        }
+    }) as Box<dyn FnMut(_)>);
+
+    document
+        .add_event_listener_with_callback("keydown", call_back.as_ref().unchecked_ref())
+        .unwrap();
+    call_back.forget();
 }

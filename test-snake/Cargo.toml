@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-rust-nes = { path = "../", features = [] }
+rust-nes = { path = "../", features = ["wasm-debug"] }
 log = "0.4.17"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 color-rs = "0.7.1"
@@ -16,6 +16,9 @@ web-sys = { version = "0.3.61", features = [
     "HtmlCanvasElement",
     "CanvasRenderingContext2d",
     "console",
+    "Window",
+    "KeyboardEvent",
+    "EventTarget",
 ] }
 gloo = "0.8.0"
 wasm-bindgen = "0.2.84"
