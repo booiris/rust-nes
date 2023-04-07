@@ -52,7 +52,7 @@ const drawRun = () => {
         draw();
         setTimeout(() => {
             requestAnimationFrame(renderLoop);
-        }, 50);
+        }, 20);
     }
     renderLoop();
 }

@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-rust-nes = { path = "../", features = ["wasm-debug"] }
+rust-nes = { path = "../", features = [] }
 log = "0.4.17"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 color-rs = "0.7.1"

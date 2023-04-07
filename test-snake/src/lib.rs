@@ -3,7 +3,7 @@ mod utils;
 use std::sync::atomic::AtomicU8;
 
 use color::{consts::*, Rgb};
-use rand::Rng;
+use rand::{rngs::ThreadRng, Rng};
 use rust_nes::{cpu::CPU, PPU::ppu::PPU};
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
@@ -24,6 +24,7 @@ pub struct BackEnd {
     screen: Vec<u8>,
     cpu: CPU,
     tick: u32,
+    rng: ThreadRng,
 }
 
 static ACTION: AtomicU8 = AtomicU8::new(0);
@@ -93,6 +94,7 @@ impl BackEnd {
             screen: vec![0; (width * height * 3) as usize],
             cpu,
             tick: 0,
+            rng,
         }
     }
 
@@ -110,6 +112,7 @@ impl BackEnd {
 
     pub fn run(&mut self) {
         loop {
+            self.cpu.mem.storeb(0xfe, self.rng.gen_range(1, 16));
             self.tick = self.tick.wrapping_add(1);
             self.handle_user_input();
             self.cpu.clock();
