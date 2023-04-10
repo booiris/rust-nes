@@ -1,13 +1,13 @@
 use std::sync::mpsc::{Receiver, Sender};
 
-pub struct BUS {
+pub struct Bus {
     pub sender: Sender<(u16, u8)>,
     pub receiver: Receiver<(u16, u8)>,
 }
 
-impl BUS {
+impl Bus {
     pub fn new(sender: Sender<(u16, u8)>, receiver: Receiver<(u16, u8)>) -> Self {
-        BUS { sender, receiver }
+        Bus { sender, receiver }
     }
 
     pub fn receive_data(&self, expect_addr: u16) -> u8 {

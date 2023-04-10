@@ -1,13 +1,7 @@
 use log::debug;
 use rust_nes::cpu::*;
-use rust_nes::CONST::HEIGHT;
-use rust_nes::CONST::WIDTH;
-use rust_nes::PPU::ppu::Frame;
 use rust_nes::PPU::ppu::PPU;
 use std::fs;
-use std::thread;
-
-const SCALE: usize = 3;
 
 fn main() {
     env_logger::init();

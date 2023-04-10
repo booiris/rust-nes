@@ -1,5 +1,5 @@
 use crate::CONST::{SYSTEM_PALLETE, WIDTH};
-use crate::{bus::BUS, memory::PpuMemory, ROM::ROM};
+use crate::{bus::Bus, memory::PpuMemory, ROM::ROM};
 use serde::{Deserialize, Serialize};
 use std::{
     sync::mpsc::{Receiver, Sender},
@@ -36,6 +36,12 @@ pub struct PPU {
     ctrl: ControlRegister,
 }
 
+impl Default for PPU {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PPU {
     pub fn new() -> Self {
         PPU {
@@ -60,7 +66,7 @@ impl PPU {
     }
 
     pub fn load_bus(&mut self, sender: Sender<(u16, u8)>, receiver: Receiver<(u16, u8)>) {
-        self.mem.bus = Some(BUS::new(sender, receiver));
+        self.mem.bus = Some(Bus::new(sender, receiver));
     }
 }
 
@@ -151,8 +157,8 @@ impl PPU {
 
                 for x in (0..=7).rev() {
                     let value = (1 & upper) << 1 | (1 & lower);
-                    upper = upper >> 1;
-                    lower = lower >> 1;
+                    upper >>= 1;
+                    lower >>= 1;
                     let rgb = match value {
                         0 => SYSTEM_PALLETE[0x01],
                         1 => SYSTEM_PALLETE[0x23],

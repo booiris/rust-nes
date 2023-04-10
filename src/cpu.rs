@@ -1,25 +1,23 @@
-#![allow(dead_code)]
-
 use std::sync::mpsc::{Receiver, Sender};
 
-// use core::time;
-// use std::thread;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    bus::BUS,
+    bus::Bus,
     memory::CpuMemory,
     register::{Flags, Register, RegisterWork},
     CONST::{IRQ_ADDR, NMI_ADDR, RESET_ADDR},
     ROM::ROM,
 };
 
+#[allow(unused_macros)]
 macro_rules! wasmLog {
     ( $( $t:tt )* ) => {
         web_sys::console::log_1(&format!( $( $t )* ).into())
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq, Eq)]
 enum InstructionTypes {
     BRK,
@@ -128,6 +126,12 @@ pub struct CPU {
     now_cycles: usize,
 }
 
+impl Default for CPU {
+    fn default() -> Self {
+        CPU::new()
+    }
+}
+
 impl CPU {
     pub fn new() -> Self {
         CPU {
@@ -158,7 +162,7 @@ impl CPU {
     }
 
     pub fn load_bus(&mut self, sender: Sender<(u16, u8)>, receiver: Receiver<(u16, u8)>) {
-        self.mem.bus = Some(BUS::new(sender, receiver));
+        self.mem.bus = Some(Bus::new(sender, receiver));
     }
 }
 
@@ -212,7 +216,7 @@ impl CPU {
                 let addr =
                     self.mem.loadb(&mut addr1) as u16 | (self.mem.loadb(&mut addr2) as u16) << 8;
                 let old_addr = addr;
-                let addr = addr.wrapping_add(self.register_y.data() as u16) as u16;
+                let addr = addr.wrapping_add(self.register_y.data() as u16);
                 if self.new_page(old_addr, addr) && op.cycle <= 5 {
                     self.defer_cycles = self.defer_cycles.wrapping_add(1);
                 }
@@ -241,13 +245,11 @@ impl CPU {
             }
             AddressingModes::ZeroPageX => {
                 let old_addr = self.mem.loadb(self.program_counter.mut_data()) as u16;
-                let new_addr = old_addr.wrapping_add(self.register_x.data() as u16) & 0xFF;
-                new_addr
+                old_addr.wrapping_add(self.register_x.data() as u16) & 0xFF
             }
             AddressingModes::ZeroPageY => {
                 let old_addr = self.mem.loadb(self.program_counter.mut_data()) as u16;
-                let new_addr = old_addr.wrapping_add(self.register_y.data() as u16) & 0xFF;
-                new_addr
+                old_addr.wrapping_add(self.register_y.data() as u16) & 0xFF
             }
             _ => panic!(
                 "get addr: {:?} not invalid address mode",
@@ -477,12 +479,12 @@ impl CPU {
     }
 
     fn jmp_by_flag(&mut self, op: &Operation, flag: Flags, on: bool) {
-        let data = self.get_data(&op);
+        let data = self.get_data(op);
         if self.register_p.check_flag(flag) == on {
             self.defer_cycles = self.defer_cycles.wrapping_add(1);
             let old_addr = self.program_counter.data();
             if (data as i8) < 0 {
-                self.program_counter -= (data as i8).abs() as u16;
+                self.program_counter -= (data as i8).unsigned_abs() as u16;
             } else {
                 self.program_counter
                     .set_data(self.program_counter.data().wrapping_add(data as u16));

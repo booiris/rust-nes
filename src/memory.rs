@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
-use crate::{bus::BUS, ROM::ROM};
+use crate::{bus::Bus, ROM::ROM};
 
 #[derive(Serialize, Deserialize)]
 pub struct CpuMemory {
@@ -10,7 +10,7 @@ pub struct CpuMemory {
     #[serde(skip)]
     pub rom: Option<ROM>,
     #[serde(skip)]
-    pub bus: Option<BUS>,
+    pub bus: Option<Bus>,
 }
 
 impl CpuMemory {
@@ -20,6 +20,12 @@ impl CpuMemory {
             rom: None,
             bus: None,
         }
+    }
+}
+
+impl Default for CpuMemory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -36,7 +42,7 @@ impl CpuMemory {
                     .expect("cpu has no bus!")
                     .send_data(address, data),
                 _ => {
-                    let mirror_down_addr = address & 0b00100000_00000111;
+                    let mirror_down_addr = address & 0b0010_0000_0000_0111;
                     self.storeb(mirror_down_addr, data)
                 }
             },
@@ -73,7 +79,7 @@ impl CpuMemory {
                     .expect("cpu has no bus!")
                     .receive_data(*address),
                 _ => {
-                    let mut mirror_down_addr = *address & 0b00100000_00000111;
+                    let mut mirror_down_addr = *address & 0b0010_0000_0000_0111;
                     self.loadb(&mut mirror_down_addr)
                 }
             },
@@ -100,7 +106,7 @@ pub struct PpuMemory {
     #[serde(skip)]
     pub rom: Option<ROM>,
     #[serde(skip)]
-    pub bus: Option<BUS>,
+    pub bus: Option<Bus>,
     palette_table: [u8; 32],
     internal_data_buf: u8,
 }
@@ -114,6 +120,12 @@ impl PpuMemory {
             palette_table: [0; 32],
             internal_data_buf: 0,
         }
+    }
+}
+
+impl Default for PpuMemory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

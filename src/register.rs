@@ -50,7 +50,7 @@ impl SubAssign<u16> for Register<u16> {
 /// trait for Register
 ////////////////////////////////////////////////////////////////
 pub trait RegisterWork<T: Add> {
-    fn new() -> Register<T>;
+    fn new() -> Self;
 
     fn data(&self) -> T;
     fn mut_data(&mut self) -> &mut T;
@@ -100,8 +100,7 @@ impl Register<u8> {
     pub fn stack_pop_byte(&mut self, mem: &mut CpuMemory) -> u8 {
         self.data += 1;
         let mut addr = self.get_stack_addr();
-        let data = mem.loadb(&mut addr);
-        data
+        mem.loadb(&mut addr)
     }
     pub fn stack_pop_word(&mut self, mem: &mut CpuMemory) -> u16 {
         self.data += 1;
