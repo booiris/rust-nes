@@ -1,5 +1,5 @@
 use rust_nes::CONST::{HEIGHT, SYSTEM_PALLETE, WIDTH};
-use rust_nes::PPU::ppu::{Frame, PPU};
+use rust_nes::ppu_impl::ppu::{Frame, PPU};
 
 #[test]
 fn main() {
