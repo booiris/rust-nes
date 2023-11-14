@@ -109,6 +109,8 @@ pub struct PpuMemory {
     pub bus: Option<Bus>,
     palette_table: [u8; 32],
     internal_data_buf: u8,
+    #[serde(with = "BigArray")]
+    pub oam_data: [u8; 256],
 }
 
 impl PpuMemory {
@@ -119,6 +121,7 @@ impl PpuMemory {
             bus: None,
             palette_table: [0; 32],
             internal_data_buf: 0,
+            oam_data: [0; 64 * 4],
         }
     }
 }

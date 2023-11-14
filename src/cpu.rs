@@ -1,12 +1,9 @@
-use std::sync::mpsc::{Receiver, Sender};
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    bus::Bus,
+    consts::{IRQ_ADDR, NMI_ADDR, RESET_ADDR},
     memory::CpuMemory,
     register::{Flags, Register, RegisterWork},
-    CONST::{IRQ_ADDR, NMI_ADDR, RESET_ADDR},
     ROM::ROM,
 };
 
@@ -160,10 +157,6 @@ impl CPU {
     pub fn load_rom(&mut self, data: Vec<u8>) {
         self.mem.rom = Some(ROM::new(data, "cpu"));
     }
-
-    pub fn load_bus(&mut self, sender: Sender<(u16, u8)>, receiver: Receiver<(u16, u8)>) {
-        self.mem.bus = Some(Bus::new(sender, receiver));
-    }
 }
 
 impl CPU {
@@ -300,7 +293,6 @@ impl CPU {
     }
 
     pub fn run(&mut self) {
-        //TODO
         self.program_counter.set_data(0xC000);
         self.now_cycles = 6;
 
@@ -2408,17 +2400,5 @@ fn operation(opc: u8) -> Operation {
             opc,
         },
         _ => panic!("{:x?} Operation Code not implement!", opc),
-    }
-}
-
-impl CPU {
-    pub fn run_with_callback<F>(&mut self, mut callback: F)
-    where
-        F: FnMut(&mut CPU),
-    {
-        loop {
-            self.step();
-            callback(self);
-        }
     }
 }

@@ -1,4 +1,4 @@
-use crate::CONST::{SYSTEM_PALLETE, WIDTH};
+use crate::consts::{SYSTEM_PALLETE, WIDTH};
 use crate::{bus::Bus, memory::PpuMemory, ROM::ROM};
 use serde::{Deserialize, Serialize};
 use std::{

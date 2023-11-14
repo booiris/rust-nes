@@ -1,4 +1,4 @@
-use rust_nes::CONST::{HEIGHT, SYSTEM_PALLETE, WIDTH};
+use rust_nes::consts::{HEIGHT, SYSTEM_PALLETE, WIDTH};
 use rust_nes::ppu_impl::ppu::{Frame, PPU};
 
 #[test]

@@ -200,7 +200,11 @@ function makeMutClosure(arg0, arg1, dtor, f) {
     return real;
 }
 function __wbg_adapter_14(arg0, arg1, arg2) {
-    wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hf273e620554bcd11(arg0, arg1, addHeapObject(arg2));
+    wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hb09d023c56c26ba6(arg0, arg1, addHeapObject(arg2));
+}
+
+function __wbg_adapter_17(arg0, arg1, arg2) {
+    wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h8265b8b455c15380(arg0, arg1, addHeapObject(arg2));
 }
 
 function passArray8ToWasm0(arg, malloc) {
@@ -248,13 +252,20 @@ export class BackEnd {
         wasm.__wbg_backend_free(ptr);
     }
     /**
+    * @returns {BackEnd}
+    */
+    static new() {
+        const ret = wasm.backend_new();
+        return BackEnd.__wrap(ret);
+    }
+    /**
     * @param {Uint8Array} data
     * @returns {BackEnd}
     */
-    static new(data) {
+    static new_with_data(data) {
         const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.backend_new(ptr0, len0);
+        const ret = wasm.backend_new_with_data(ptr0, len0);
         return BackEnd.__wrap(ret);
     }
     /**
@@ -282,6 +293,65 @@ export class BackEnd {
     */
     run() {
         wasm.backend_run(this.ptr);
+    }
+}
+/**
+*/
+export class BackEndTest {
+
+    static __wrap(ptr) {
+        const obj = Object.create(BackEndTest.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_backendtest_free(ptr);
+    }
+    /**
+    * @param {Uint8Array} data
+    * @returns {BackEndTest}
+    */
+    static new(data) {
+        const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.backendtest_new(ptr0, len0);
+        return BackEndTest.__wrap(ret);
+    }
+    /**
+    * @returns {number}
+    */
+    width() {
+        const ret = wasm.backendtest_width(this.ptr);
+        return ret >>> 0;
+    }
+    /**
+    * @returns {number}
+    */
+    height() {
+        const ret = wasm.backendtest_height(this.ptr);
+        return ret >>> 0;
+    }
+    /**
+    * @returns {number}
+    */
+    screen() {
+        const ret = wasm.backendtest_screen(this.ptr);
+        return ret;
+    }
+    /**
+    */
+    run() {
+        wasm.backendtest_run(this.ptr);
     }
 }
 
@@ -463,8 +533,12 @@ function getImports() {
         const ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper63 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper64 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 12, __wbg_adapter_14);
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_closure_wrapper120 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 32, __wbg_adapter_17);
         return addHeapObject(ret);
     };
 

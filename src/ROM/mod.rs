@@ -1,6 +1,6 @@
 use log::debug;
 
-use crate::CONST::{CHR_ROM_PAGE_SIZE, NES_TAG, PRG_ROM_PAGE_SIZE};
+use crate::consts::{CHR_ROM_PAGE_SIZE, NES_TAG, PRG_ROM_PAGE_SIZE};
 
 use self::mapper0::Mapper0;
 
@@ -98,7 +98,7 @@ impl ROM {
     }
 }
 
-fn parse_header(data: &Vec<u8>) -> Header {
+fn parse_header(data: &[u8]) -> Header {
     let header = &data[0..16];
     if header[0..4] != NES_TAG {
         panic!("File is not in iNES file format");

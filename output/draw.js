@@ -1,4 +1,5 @@
 import { BackEnd, wasm } from "./rust_nes.js";
+import { read_file } from "./foo.js";
 
 const CELL_SIZE = 22; // px
 
@@ -6,8 +7,9 @@ let WindowHandle;
 let Height, Width, Screen;
 let Ctx;
 
-function initDraw() {
-    WindowHandle = BackEnd.new();
+async function initDraw() {
+    let data = await read_file("./pacman.nes");
+    WindowHandle = BackEnd.new_with_data(data);
     Height = WindowHandle.height();
     Width = WindowHandle.width();
     const screenPtr = WindowHandle.screen();

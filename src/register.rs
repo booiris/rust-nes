@@ -2,7 +2,7 @@ use std::ops::{Add, AddAssign, SubAssign};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{memory::CpuMemory, CONST::STACK_BASE};
+use crate::{memory::CpuMemory, consts::STACK_BASE};
 
 #[allow(dead_code)]
 #[repr(u8)]

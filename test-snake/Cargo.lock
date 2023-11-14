@@ -507,11 +507,15 @@ name = "rust-nes"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "console_error_panic_hook",
  "env_logger",
+ "gloo",
  "log",
+ "rand",
  "serde",
  "serde-big-array",
  "serde_json",
+ "wasm-bindgen",
  "web-sys",
 ]
 

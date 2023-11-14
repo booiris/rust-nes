@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicU8;
 
 use color::{consts::*, Rgb};
 use rand::{rngs::ThreadRng, Rng};
-use rust_nes::{cpu::CPU, PPU::ppu::PPU};
+use rust_nes::cpu::CPU;
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
     JsCast,
@@ -18,7 +18,7 @@ macro_rules! wasmLog {
 }
 
 #[wasm_bindgen]
-pub struct BackEnd {
+pub struct BackEndTest {
     width: u32,
     height: u32,
     screen: Vec<u8>,
@@ -29,7 +29,7 @@ pub struct BackEnd {
 
 static ACTION: AtomicU8 = AtomicU8::new(0);
 
-impl BackEnd {
+impl BackEndTest {
     fn read_screen_state(&mut self) -> bool {
         let frame = &mut self.screen;
         let mut frame_idx = 0;
@@ -72,15 +72,13 @@ impl BackEnd {
 }
 
 #[wasm_bindgen]
-impl BackEnd {
-    pub fn new(data: &[u8]) -> BackEnd {
+impl BackEndTest {
+    pub fn new(data: &[u8]) -> BackEndTest {
         utils::set_panic_hook();
         let data: Vec<u8> = data.into();
         let mut cpu = CPU::new();
         cpu.load_rom(data.clone());
         cpu.reset();
-        let mut ppu = PPU::new();
-        ppu.load_rom(data);
         let mut rng = rand::thread_rng();
         cpu.mem.storeb(0xfe, rng.gen_range(1, 16));
 
@@ -88,7 +86,7 @@ impl BackEnd {
 
         let width = 32;
         let height = 32;
-        BackEnd {
+        BackEndTest {
             width,
             height,
             screen: vec![0; (width * height * 3) as usize],

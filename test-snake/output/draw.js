@@ -1,4 +1,4 @@
-import { BackEnd, wasm } from "./test.js";
+import { BackEndTest, wasm } from "./test.js";
 
 const CELL_SIZE = 22; // px
 
@@ -7,7 +7,7 @@ let Height, Width, Screen;
 let Ctx;
 
 function initDraw(data) {
-    WindowHandle = BackEnd.new(data);
+    WindowHandle = BackEndTest.new(data);
     Height = WindowHandle.height();
     Width = WindowHandle.width();
     const screenPtr = WindowHandle.screen();
